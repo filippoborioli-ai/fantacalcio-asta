@@ -183,6 +183,17 @@ input:focus, select:focus { outline: 2px solid #3B7A45; outline-offset: 1px; }
   color: #FBF3EE;
 }
 
+.fk-join-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #fff;
+  border: 1px dashed rgba(28,43,34,0.35);
+  border-radius: 4px;
+  padding: 10px;
+}
+.fk-join-slot input { width: 100%; min-width: 0; }
+
 .fk-team-names {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));

@@ -32,3 +32,15 @@ export function postiLiberiTotali(squadra, slotConfig) {
     0
   );
 }
+
+// Un giocatore può stare in una sola rosa: cerca se è già stato assegnato
+// da qualche parte (confronto per nome, senza distinguere maiuscole/spazi).
+export function trovaGiocatoreAssegnato(squadre, nome) {
+  const target = nome.trim().toLowerCase();
+  if (!target) return null;
+  for (const s of squadre) {
+    const g = s.giocatori.find((gg) => gg.nome.trim().toLowerCase() === target);
+    if (g) return { squadraNome: s.nome, giocatore: g };
+  }
+  return null;
+}

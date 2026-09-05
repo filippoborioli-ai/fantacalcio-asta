@@ -10,8 +10,9 @@ import {
   creditiSpesi,
   creditiResidui,
   postiLiberiTotali,
+  trovaGiocatoreAssegnato,
 } from "../lib/model.js";
-import { subscribeListone, salvaListone, estraiGiocatoriDaFile } from "../lib/listone.js";
+import { subscribeListone, salvaListone, estraiGiocatoriDaFile, normalizza } from "../lib/listone.js";
 import GiocatoreInput from "../components/GiocatoreInput.jsx";
 import {
   Trash2,
@@ -56,7 +57,7 @@ export default function AstaRoom() {
   const [quickErr, setQuickErr] = useState({});
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState("");
-  const [liveForm, setLiveForm] = useState({ nome: "", ruolo: "P", offertaBase: "1" });
+  const [liveForm, setLiveForm] = useState({ nome: "", ruolo: "P", offertaBase: "1", countdownSec: "20" });
   const [bidValue, setBidValue] = useState("");
   const [liveErr, setLiveErr] = useState("");
   const [copiato, setCopiato] = useState(false);
@@ -65,6 +66,9 @@ export default function AstaRoom() {
   const [listoneDoc, setListoneDoc] = useState(null);
   const [caricandoListone, setCaricandoListone] = useState(false);
   const [listoneErr, setListoneErr] = useState("");
+  const [secondiRimanenti, setSecondiRimanenti] = useState(null);
+  const [dispRuolo, setDispRuolo] = useState("TUTTI");
+  const [dispQuery, setDispQuery] = useState("");
 
   // Sottoscrizione realtime al documento dell'asta
   useEffect(() => {
@@ -125,6 +129,22 @@ export default function AstaRoom() {
   const squadre = asta_iniziata ? stato.squadre : null;
   const astaLive = stato?.astaLive || null;
 
+  // Giocatori del listone non ancora assegnati a nessuna squadra: utile per
+  // vedere in un colpo d'occhio chi manca ancora da mettere all'asta.
+  const giocatoriDisponibili = useMemo(() => {
+    if (!listone.length) return [];
+    const assegnati = new Set();
+    (squadre || []).forEach((s) =>
+      s.giocatori.forEach((g) => assegnati.add(normalizza(g.nome)))
+    );
+    const q = normalizza(dispQuery.trim());
+    return listone
+      .filter((g) => dispRuolo === "TUTTI" || g.ruolo === dispRuolo)
+      .filter((g) => !assegnati.has(normalizza(g.nome)))
+      .filter((g) => !q || normalizza(g.nome).includes(q))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [listone, squadre, dispRuolo, dispQuery]);
+
   const iniziaAsta = async () => {
     // Nessuna squadra all'inizio: chi entra con il codice si registra da
     // solo con il nome della propria squadra, dalla scheda "Asta Live".
@@ -151,6 +171,12 @@ export default function AstaRoom() {
           const dati = snap.data();
           const squadra = dati.squadre.find((s) => s.id === squadraId);
           if (!squadra) throw new Error("Squadra non trovata.");
+          const giaAssegnato = trovaGiocatoreAssegnato(dati.squadre, nome);
+          if (giaAssegnato) {
+            throw new Error(
+              `${nome} è già in rosa a ${giaAssegnato.squadraNome} (${giaAssegnato.giocatore.crediti} crediti).`
+            );
+          }
           if (occupati(squadra, ruolo) >= dati.config.slot[ruolo]) {
             throw new Error(
               `${squadra.nome} ha già completato il reparto ${RUOLI.find((r) => r.key === ruolo).label.toLowerCase()}.`
@@ -294,8 +320,15 @@ export default function AstaRoom() {
     setLiveErr("");
     const nome = liveForm.nome.trim();
     const base = parseInt(liveForm.offertaBase, 10);
+    const durata = Math.max(5, Math.min(300, parseInt(liveForm.countdownSec, 10) || 20));
     if (!nome) return setLiveErr("Inserisci il nome del giocatore.");
     if (!Number.isFinite(base) || base < 1) return setLiveErr("Offerta di partenza non valida.");
+    const giaAssegnato = trovaGiocatoreAssegnato(squadre || [], nome);
+    if (giaAssegnato) {
+      return setLiveErr(
+        `${nome} è già in rosa a ${giaAssegnato.squadraNome} (${giaAssegnato.giocatore.crediti} crediti).`
+      );
+    }
     await updateDoc(ref, {
       astaLive: {
         attiva: true,
@@ -305,10 +338,12 @@ export default function AstaRoom() {
         squadraOfferenteId: null,
         squadraOfferenteNome: null,
         storico: [],
+        durataSecondi: durata,
+        scadenza: Date.now() + durata * 1000,
       },
     });
     setLiveForm((f) => ({ ...f, nome: "" }));
-  }, [liveForm, ref]);
+  }, [liveForm, ref, squadre]);
 
   const annullaAstaLive = useCallback(async () => {
     await updateDoc(ref, {
@@ -320,6 +355,8 @@ export default function AstaRoom() {
         squadraOfferenteId: null,
         squadraOfferenteNome: null,
         storico: [],
+        durataSecondi: 0,
+        scadenza: null,
       },
     });
   }, [ref]);
@@ -376,6 +413,7 @@ export default function AstaRoom() {
             offertaCorrente: valore,
             squadraOfferenteId: squadra.id,
             squadraOfferenteNome: squadra.nome,
+            scadenza: Date.now() + (live.durataSecondi || 20) * 1000,
             storico: [
               ...(live.storico || []),
               { squadraNome: squadra.nome, valore, ts: Date.now() },
@@ -390,6 +428,33 @@ export default function AstaRoom() {
     },
     [ref, deviceRole]
   );
+
+  // Countdown dell'asta live: ogni dispositivo tiene il proprio timer locale
+  // in base a "scadenza" (sincronizzata da Firestore, si resetta a ogni
+  // rilancio). Allo scadere: assegna a chi è in testa, o annulla se nessuno
+  // ha offerto. Sicuro anche se più dispositivi lo fanno insieme: chi arriva
+  // secondo trova il giocatore già assegnato (o l'asta già chiusa) e non fa
+  // danni.
+  useEffect(() => {
+    if (!astaLive || !astaLive.attiva || !astaLive.scadenza) {
+      setSecondiRimanenti(null);
+      return;
+    }
+    const tick = () => {
+      const rimasti = Math.max(0, Math.ceil((astaLive.scadenza - Date.now()) / 1000));
+      setSecondiRimanenti(rimasti);
+      if (rimasti <= 0) {
+        if (astaLive.squadraOfferenteId) {
+          assegnaEChiudiAstaLive();
+        } else {
+          annullaAstaLive();
+        }
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [astaLive?.scadenza, astaLive?.attiva, astaLive?.squadraOfferenteId, assegnaEChiudiAstaLive, annullaAstaLive]);
 
   // Registrazione self-service: chi entra con il codice crea la propria
   // squadra al volo con il nome che preferisce (transazionale, così due
@@ -540,6 +605,13 @@ export default function AstaRoom() {
         >
           Squadre
         </button>
+        <button
+          className={tab === "disponibili" ? "fk-tab fk-tab-active" : "fk-tab"}
+          onClick={() => asta_iniziata && setTab("disponibili")}
+          disabled={!asta_iniziata}
+        >
+          Disponibili
+        </button>
         {asta_iniziata && (
           <button className="fk-secondary fk-export-nav" onClick={esportaExcel}>
             <Download size={14} /> Esporta in Excel
@@ -673,7 +745,9 @@ export default function AstaRoom() {
                           <h3 className="fk-h3">Metti all'asta un giocatore</h3>
                           <p className="fk-hint">
                             Chiunque può avviarla: scrivi il giocatore, il ruolo e l'offerta di
-                            partenza, poi tutti rilanciano da qui.
+                            partenza, poi tutti rilanciano da qui. Il countdown si resetta a ogni
+                            rilancio: quando scade, il giocatore si assegna da solo a chi è in
+                            testa (o l'asta si annulla se nessuno ha offerto).
                           </p>
                           <div className="fk-field-row">
                             <label>
@@ -694,6 +768,18 @@ export default function AstaRoom() {
                                 value={liveForm.offertaBase}
                                 onChange={(e) =>
                                   setLiveForm((f) => ({ ...f, offertaBase: e.target.value }))
+                                }
+                              />
+                            </label>
+                            <label>
+                              Countdown (secondi)
+                              <input
+                                type="number"
+                                min={5}
+                                max={300}
+                                value={liveForm.countdownSec}
+                                onChange={(e) =>
+                                  setLiveForm((f) => ({ ...f, countdownSec: e.target.value }))
                                 }
                               />
                             </label>
@@ -758,6 +844,11 @@ export default function AstaRoom() {
                           <strong>{astaLive.giocatore}</strong>
                         </p>
                         <p className="fk-bid-value">{astaLive.offertaCorrente} crediti</p>
+                        {secondiRimanenti !== null && (
+                          <p className={secondiRimanenti <= 5 ? "fk-warn" : "fk-hint"}>
+                            Chiude tra {secondiRimanenti}s se nessuno rilancia
+                          </p>
+                        )}
                         <p className="fk-hint">
                           {sonoIoInTesta ? (
                             <span className="fk-leading">
@@ -837,7 +928,18 @@ export default function AstaRoom() {
                           >
                             Assegna a {astaLive.squadraOfferenteNome || "…"}
                           </button>
-                          <button className="fk-secondary" onClick={annullaAstaLive}>
+                          <button
+                            className="fk-secondary"
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `Annullare l'asta per ${astaLive.giocatore}? Torna disponibile, l'offerta in corso va persa.`
+                                )
+                              ) {
+                                annullaAstaLive();
+                              }
+                            }}
+                          >
                             Annulla asta
                           </button>
                         </div>
@@ -1034,6 +1136,75 @@ export default function AstaRoom() {
                 </div>
               );
             })}
+          </section>
+        )}
+
+        {tab === "disponibili" && asta_iniziata && (
+          <section className="fk-card">
+            <h3 className="fk-h3">Giocatori disponibili</h3>
+            {listone.length === 0 ? (
+              <p className="fk-hint">
+                Nessun elenco caricato: vai in "Impostazioni" e carica il file Excel delle
+                quotazioni per usare questa scheda.
+              </p>
+            ) : (
+              <>
+                <p className="fk-hint">
+                  Giocatori del listone non ancora assegnati a nessuna squadra.
+                </p>
+                <div className="fk-field-row" style={{ marginTop: 10 }}>
+                  <label>
+                    Cerca
+                    <input
+                      type="text"
+                      placeholder="Nome o cognome"
+                      value={dispQuery}
+                      onChange={(e) => setDispQuery(e.target.value)}
+                    />
+                  </label>
+                </div>
+                <div className="fk-choice-grid" style={{ marginTop: 10, marginBottom: 14 }}>
+                  <button
+                    className={dispRuolo === "TUTTI" ? "fk-choice fk-choice-active" : "fk-choice"}
+                    onClick={() => setDispRuolo("TUTTI")}
+                  >
+                    Tutti
+                  </button>
+                  {RUOLI.map((r) => {
+                    const attivo = dispRuolo === r.key;
+                    return (
+                      <button
+                        key={r.key}
+                        className={attivo ? "fk-choice fk-choice-active" : "fk-choice"}
+                        style={attivo ? { background: r.colore, borderColor: r.colore, color: "#fff" } : undefined}
+                        onClick={() => setDispRuolo(r.key)}
+                      >
+                        {r.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="fk-hint">{giocatoriDisponibili.length} giocatori trovati.</p>
+                <ul className="fk-player-list" style={{ marginTop: 8 }}>
+                  {giocatoriDisponibili.map((g, i) => {
+                    const r = RUOLI.find((x) => x.key === g.ruolo);
+                    return (
+                      <li key={`${g.nome}-${i}`}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span className="fk-chip" style={{ background: r?.colore }}>
+                            {g.ruolo}
+                          </span>
+                          {g.nome}
+                        </span>
+                        <span className="fk-hint" style={{ margin: 0 }}>
+                          {g.squadra}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </>
+            )}
           </section>
         )}
       </main>

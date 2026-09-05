@@ -68,7 +68,7 @@ export async function estraiGiocatoriDaFile(file) {
   return giocatori;
 }
 
-function normalizza(s) {
+export function normalizza(s) {
   return s
     .toLowerCase()
     .normalize("NFD")

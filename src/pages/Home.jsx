@@ -41,7 +41,6 @@ export default function Home() {
       await setDoc(doc(db, "aste", codice), {
         nome: nomeAsta.trim() || "Asta del Fanta",
         config: defaultConfig(),
-        teamNames: Array.from({ length: 8 }, () => ""),
         squadre: null,
         astaLive: null,
         creatoIl: serverTimestamp(),

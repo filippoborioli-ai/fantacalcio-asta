@@ -6,7 +6,6 @@ export const RUOLI = [
 ];
 
 export const defaultConfig = () => ({
-  numSquadre: 8,
   budget: 500,
   slot: { P: 3, D: 8, C: 8, A: 6 },
 });

@@ -36,7 +36,6 @@ export default function AstaRoom() {
 
   const [tab, setTab] = useState("setup");
   const [configDraft, setConfigDraft] = useState(defaultConfig());
-  const [teamNamesDraft, setTeamNamesDraft] = useState(Array.from({ length: 8 }, () => ""));
   const draftInitRef = useRef(false);
 
   const [deviceRole, setDeviceRoleState] = useState(() => {
@@ -59,8 +58,8 @@ export default function AstaRoom() {
   const [bidValue, setBidValue] = useState("");
   const [liveErr, setLiveErr] = useState("");
   const [copiato, setCopiato] = useState(false);
-  const [joinName, setJoinName] = useState({});
-  const [joinErr, setJoinErr] = useState({});
+  const [newTeamName, setNewTeamName] = useState("");
+  const [newTeamErr, setNewTeamErr] = useState("");
 
   // Sottoscrizione realtime al documento dell'asta
   useEffect(() => {
@@ -82,10 +81,6 @@ export default function AstaRoom() {
   useEffect(() => {
     if (stato && !draftInitRef.current) {
       setConfigDraft(stato.config || defaultConfig());
-      const n = stato.config?.numSquadre || 8;
-      setTeamNamesDraft(
-        stato.teamNames && stato.teamNames.length ? stato.teamNames : Array.from({ length: n }, () => "")
-      );
       draftInitRef.current = true;
     }
   }, [stato]);
@@ -107,45 +102,25 @@ export default function AstaRoom() {
   const squadre = asta_iniziata ? stato.squadre : null;
   const astaLive = stato?.astaLive || null;
 
-  const aggiornaNumSquadre = (n) => {
-    const num = Math.max(2, Math.min(20, n));
-    setConfigDraft((c) => ({ ...c, numSquadre: num }));
-    setTeamNamesDraft((old) => {
-      const arr = [...old];
-      while (arr.length < num) arr.push("");
-      return arr.slice(0, num);
-    });
-  };
-
   const iniziaAsta = async () => {
-    // Nome vuoto = slot libero: chi entra con il codice sceglierà il nome
-    // della propria squadra dalla scheda "Asta Live".
-    const nuoveSquadre = teamNamesDraft.map((nome) => ({
-      id: uid(),
-      nome: nome.trim(),
-      giocatori: [],
-    }));
+    // Nessuna squadra all'inizio: chi entra con il codice si registra da
+    // solo con il nome della propria squadra, dalla scheda "Asta Live".
     await updateDoc(ref, {
       config: configDraft,
-      teamNames: teamNamesDraft,
-      squadre: nuoveSquadre,
+      squadre: [],
     });
-    setForm((f) => ({ ...f, squadraId: nuoveSquadre[0]?.id || "" }));
     setTab("asta");
   };
 
   const resetTutto = async () => {
     if (!window.confirm("Ricominciare da capo? Tutti i dati dell'asta andranno persi.")) return;
     const nuovoConfig = defaultConfig();
-    const nuoviNomi = Array.from({ length: nuovoConfig.numSquadre }, () => "");
     await updateDoc(ref, {
       config: nuovoConfig,
-      teamNames: nuoviNomi,
       squadre: null,
       astaLive: null,
     });
     setConfigDraft(nuovoConfig);
-    setTeamNamesDraft(nuoviNomi);
     setErrore("");
     setUltimaAggiunta(null);
     setForm({ nome: "", ruolo: "P", squadraId: "", crediti: "" });
@@ -403,34 +378,31 @@ export default function AstaRoom() {
     [ref, deviceRole]
   );
 
-  // Registrazione self-service: chi entra con il codice sceglie uno slot
-  // libero e ci mette il nome della propria squadra (transazionale, così
-  // due persone non possono prendere lo stesso slot in contemporanea).
-  const registraSquadra = useCallback(
-    async (squadraId) => {
-      const nome = (joinName[squadraId] || "").trim();
-      if (!nome) {
-        setJoinErr((e) => ({ ...e, [squadraId]: "Inserisci un nome per la tua squadra." }));
-        return;
-      }
-      try {
-        await runTransaction(db, async (tx) => {
-          const snap = await tx.get(ref);
-          const dati = snap.data();
-          const squadra = dati.squadre.find((s) => s.id === squadraId);
-          if (!squadra) throw new Error("Squadra non trovata.");
-          if (squadra.nome) throw new Error("Questo slot è appena stato preso da qualcun altro: scegline un altro.");
-          const nuoveSquadre = dati.squadre.map((s) => (s.id === squadraId ? { ...s, nome } : s));
-          tx.update(ref, { squadre: nuoveSquadre, teamNames: nuoveSquadre.map((s) => s.nome) });
-        });
-        setJoinErr((e) => ({ ...e, [squadraId]: null }));
-        impostaRuoloDispositivo(squadraId);
-      } catch (e) {
-        setJoinErr((e2) => ({ ...e2, [squadraId]: e.message || "Errore nella registrazione." }));
-      }
-    },
-    [joinName, ref, impostaRuoloDispositivo]
-  );
+  // Registrazione self-service: chi entra con il codice crea la propria
+  // squadra al volo con il nome che preferisce (transazionale, così due
+  // persone che premono insieme non si sovrascrivono a vicenda).
+  const aggiungiSquadra = useCallback(async () => {
+    const nome = newTeamName.trim();
+    if (!nome) return setNewTeamErr("Inserisci un nome per la tua squadra.");
+    let nuovoId = null;
+    try {
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const dati = snap.data();
+        if (dati.squadre.some((s) => s.nome.toLowerCase() === nome.toLowerCase())) {
+          throw new Error("Esiste già una squadra con questo nome: scegline un altro.");
+        }
+        nuovoId = uid();
+        const nuovaSquadra = { id: nuovoId, nome, giocatori: [] };
+        tx.update(ref, { squadre: [...dati.squadre, nuovaSquadra] });
+      });
+      setNewTeamErr("");
+      setNewTeamName("");
+      impostaRuoloDispositivo(nuovoId);
+    } catch (e) {
+      setNewTeamErr(e.message || "Errore nella creazione della squadra.");
+    }
+  }, [newTeamName, ref, impostaRuoloDispositivo]);
 
   const copiaCodice = () => {
     try {
@@ -465,7 +437,7 @@ export default function AstaRoom() {
           <h1>{stato.nome || "Asta del Fanta"}</h1>
           <p className="fk-sub">
             {asta_iniziata
-              ? `${config.numSquadre} squadre · ${config.budget} crediti a testa · P ${config.slot.P} · D ${config.slot.D} · C ${config.slot.C} · A ${config.slot.A}`
+              ? `${squadre.length} squadre iscritte · ${config.budget} crediti a testa · P ${config.slot.P} · D ${config.slot.D} · C ${config.slot.C} · A ${config.slot.A}`
               : "Configura l'asta qui sotto"}
           </p>
           <button className="fk-code-badge" onClick={copiaCodice} title="Copia il codice">
@@ -527,17 +499,6 @@ export default function AstaRoom() {
             )}
             <div className="fk-field-row">
               <label>
-                Numero squadre
-                <input
-                  type="number"
-                  min={2}
-                  max={20}
-                  disabled={asta_iniziata}
-                  value={configDraft.numSquadre}
-                  onChange={(e) => aggiornaNumSquadre(parseInt(e.target.value || "0", 10))}
-                />
-              </label>
-              <label>
                 Crediti iniziali
                 <input
                   type="number"
@@ -575,29 +536,10 @@ export default function AstaRoom() {
               Totale giocatori per rosa: {Object.values(configDraft.slot).reduce((a, b) => a + b, 0)}
             </p>
 
-            <h3 className="fk-h3">Nomi delle squadre (opzionale)</h3>
             <p className="fk-hint">
-              Lascia vuoto: chi entra con il codice sceglie uno slot libero e registra il nome
-              della propria squadra da solo, nella scheda "Asta Live".
+              Le squadre non si impostano qui: chi entra con il codice va nella scheda "Asta
+              Live" e crea la propria squadra con il nome che preferisce.
             </p>
-            <div className="fk-team-names">
-              {teamNamesDraft.map((n, i) => (
-                <input
-                  key={i}
-                  type="text"
-                  disabled={asta_iniziata}
-                  value={n}
-                  placeholder={`Squadra ${i + 1}`}
-                  onChange={(e) =>
-                    setTeamNamesDraft((old) => {
-                      const arr = [...old];
-                      arr[i] = e.target.value;
-                      return arr;
-                    })
-                  }
-                />
-              ))}
-            </div>
 
             {!asta_iniziata && (
               <button className="fk-primary" onClick={iniziaAsta}>
@@ -655,24 +597,31 @@ export default function AstaRoom() {
 
               <div className="fk-block">
                 <span className="fk-label">Squadra aggiudicataria</span>
-                <div className="fk-choice-grid">
-                  {squadre.map((s, i) => {
-                    const piena = postiLiberiTotali(s, config.slot) === 0;
-                    const attivo = form.squadraId === s.id;
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        disabled={piena}
-                        className={attivo ? "fk-choice fk-choice-active" : "fk-choice"}
-                        onClick={() => setForm((f) => ({ ...f, squadraId: s.id }))}
-                        title={piena ? "Rosa completa" : undefined}
-                      >
-                        {s.nome || `Slot ${i + 1} (libero)`}
-                      </button>
-                    );
-                  })}
-                </div>
+                {squadre.length === 0 ? (
+                  <p className="fk-hint">
+                    Nessuna squadra ancora: fai entrare i tuoi amici con il codice, si registrano
+                    da soli dalla scheda "Asta Live".
+                  </p>
+                ) : (
+                  <div className="fk-choice-grid">
+                    {squadre.map((s) => {
+                      const piena = postiLiberiTotali(s, config.slot) === 0;
+                      const attivo = form.squadraId === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          disabled={piena}
+                          className={attivo ? "fk-choice fk-choice-active" : "fk-choice"}
+                          onClick={() => setForm((f) => ({ ...f, squadraId: s.id }))}
+                          title={piena ? "Rosa completa" : undefined}
+                        >
+                          {s.nome}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {squadraSelezionata && (
@@ -727,47 +676,40 @@ export default function AstaRoom() {
             {deviceRole === null && (
               <div className="fk-card">
                 <h3 className="fk-h3">Chi sei su questo dispositivo?</h3>
-                <p className="fk-hint">
-                  La scelta resta salvata solo su questo dispositivo/browser. Se la tua squadra non
-                  esiste ancora, scegli uno slot libero e registrala con il tuo nome.
-                </p>
+                <p className="fk-hint">La scelta resta salvata solo su questo dispositivo/browser.</p>
                 <div className="fk-choice-grid" style={{ marginTop: 14 }}>
                   <button className="fk-choice" onClick={() => impostaRuoloDispositivo("admin")}>
                     Admin (banditore)
                   </button>
-                  {squadre.map((s, i) =>
-                    s.nome ? (
-                      <button
-                        key={s.id}
-                        className="fk-choice"
-                        onClick={() => impostaRuoloDispositivo(s.id)}
-                      >
-                        {s.nome}
-                      </button>
-                    ) : (
-                      <div key={s.id} className="fk-join-slot">
-                        <span className="fk-hint" style={{ margin: 0 }}>
-                          Slot {i + 1} libero
-                        </span>
-                        <input
-                          type="text"
-                          placeholder="Nome della tua squadra"
-                          value={joinName[s.id] || ""}
-                          onChange={(e) =>
-                            setJoinName((j) => ({ ...j, [s.id]: e.target.value }))
-                          }
-                          onKeyDown={(e) => e.key === "Enter" && registraSquadra(s.id)}
-                        />
-                        <button className="fk-choice" onClick={() => registraSquadra(s.id)}>
-                          Registrami qui
-                        </button>
-                        {joinErr[s.id] && (
-                          <p className="fk-error fk-error-small">
-                            <AlertTriangle size={12} /> {joinErr[s.id]}
-                          </p>
-                        )}
-                      </div>
-                    )
+                  {squadre.map((s) => (
+                    <button
+                      key={s.id}
+                      className="fk-choice"
+                      onClick={() => impostaRuoloDispositivo(s.id)}
+                    >
+                      {s.nome}
+                    </button>
+                  ))}
+                </div>
+
+                <h3 className="fk-h3" style={{ marginTop: 20 }}>
+                  Non vedi la tua squadra?
+                </h3>
+                <div className="fk-join-slot" style={{ maxWidth: 320 }}>
+                  <input
+                    type="text"
+                    placeholder="Nome della tua squadra"
+                    value={newTeamName}
+                    onChange={(e) => setNewTeamName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && aggiungiSquadra()}
+                  />
+                  <button className="fk-choice" onClick={aggiungiSquadra}>
+                    + Crea la mia squadra
+                  </button>
+                  {newTeamErr && (
+                    <p className="fk-error fk-error-small">
+                      <AlertTriangle size={12} /> {newTeamErr}
+                    </p>
                   )}
                 </div>
               </div>
@@ -1010,9 +952,16 @@ export default function AstaRoom() {
           </section>
         )}
 
-        {tab === "squadre" && asta_iniziata && (
+        {tab === "squadre" && asta_iniziata && squadre.length === 0 && (
+          <p className="fk-hint">
+            Nessuna squadra ancora: fai entrare i tuoi amici con il codice, si registrano da soli
+            dalla scheda "Asta Live".
+          </p>
+        )}
+
+        {tab === "squadre" && asta_iniziata && squadre.length > 0 && (
           <section className="fk-teams-grid">
-            {squadre.map((s, i) => {
+            {squadre.map((s) => {
               const spesi = creditiSpesi(s);
               const residui = config.budget - spesi;
               const totaleSlot = Object.values(config.slot).reduce((a, b) => a + b, 0);
@@ -1020,7 +969,7 @@ export default function AstaRoom() {
               return (
                 <div className="fk-card fk-team-card" key={s.id}>
                   <div className="fk-team-head">
-                    <h3>{s.nome || `Slot ${i + 1} (libero)`}</h3>
+                    <h3>{s.nome}</h3>
                     <span className="fk-credits">
                       <Coins size={14} /> {residui} / {config.budget}
                     </span>

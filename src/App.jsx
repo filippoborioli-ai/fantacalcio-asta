@@ -10,7 +10,7 @@ function AstaRoomKeyed() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/fantacalcio-asta/">
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/asta/:codice" element={<AstaRoomKeyed />} />

@@ -276,6 +276,7 @@ input:focus, select:focus { outline: 2px solid #3B7A45; outline-offset: 1px; }
   color: #C99A2E;
   white-space: nowrap;
 }
+.fk-credits-hidden { color: #8a8a8a; font-weight: 500; font-style: italic; }
 
 .fk-progress {
   height: 5px;

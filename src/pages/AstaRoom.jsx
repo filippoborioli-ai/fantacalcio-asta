@@ -23,6 +23,7 @@ import {
   Download,
   Crown,
   Copy,
+  Lock,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -798,20 +799,29 @@ export default function AstaRoom() {
               const residui = config.budget - spesi;
               const totaleSlot = Object.values(config.slot).reduce((a, b) => a + b, 0);
               const totaleOccupati = s.giocatori.length;
+              const mia = s.id === deviceRole;
               return (
                 <div className="fk-card fk-team-card" key={s.id}>
                   <div className="fk-team-head">
                     <h3>{s.nome}</h3>
-                    <span className="fk-credits">
-                      <Coins size={14} /> {residui} / {config.budget}
-                    </span>
+                    {mia ? (
+                      <span className="fk-credits">
+                        <Coins size={14} /> {residui} / {config.budget}
+                      </span>
+                    ) : (
+                      <span className="fk-credits fk-credits-hidden" title="Solo il proprietario vede i suoi crediti residui">
+                        <Lock size={13} /> nascosti
+                      </span>
+                    )}
                   </div>
-                  <div className="fk-progress">
-                    <div
-                      className="fk-progress-bar"
-                      style={{ width: `${Math.min(100, (spesi / config.budget) * 100)}%` }}
-                    />
-                  </div>
+                  {mia && (
+                    <div className="fk-progress">
+                      <div
+                        className="fk-progress-bar"
+                        style={{ width: `${Math.min(100, (spesi / config.budget) * 100)}%` }}
+                      />
+                    </div>
+                  )}
                   <p className="fk-hint">
                     {totaleOccupati} / {totaleSlot} giocatori in rosa
                   </p>

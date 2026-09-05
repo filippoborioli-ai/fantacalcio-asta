@@ -409,8 +409,9 @@ export default function AstaRoom() {
   if (!stato) return null;
 
   // Prima di vedere l'asta, chi entra con il codice deve dire chi è: così
-  // registra subito la propria squadra (o si dichiara admin), invece di
-  // trovarsi il cruscotto e doverlo scoprire da solo dentro "Asta Live".
+  // registra subito la propria squadra, invece di trovarsi il cruscotto e
+  // doverlo scoprire da solo dentro "Asta Live". Non c'è un ruolo admin: fa
+  // tutto chiunque, come in un'asta vera tra amici.
   if (asta_iniziata && deviceRole === null) {
     return (
       <div className="fk-root">
@@ -425,16 +426,15 @@ export default function AstaRoom() {
           <div className="fk-card">
             <h3 className="fk-h3">Chi sei su questo dispositivo?</h3>
             <p className="fk-hint">La scelta resta salvata solo su questo dispositivo/browser.</p>
-            <div className="fk-choice-grid" style={{ marginTop: 14 }}>
-              <button className="fk-choice" onClick={() => impostaRuoloDispositivo("admin")}>
-                Admin (banditore)
-              </button>
-              {squadre.map((s) => (
-                <button key={s.id} className="fk-choice" onClick={() => impostaRuoloDispositivo(s.id)}>
-                  {s.nome}
-                </button>
-              ))}
-            </div>
+            {squadre.length > 0 && (
+              <div className="fk-choice-grid" style={{ marginTop: 14 }}>
+                {squadre.map((s) => (
+                  <button key={s.id} className="fk-choice" onClick={() => impostaRuoloDispositivo(s.id)}>
+                    {s.nome}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <h3 className="fk-h3" style={{ marginTop: 20 }}>
               Non vedi la tua squadra?
@@ -581,9 +581,7 @@ export default function AstaRoom() {
                   <span>
                     Tu sei:{" "}
                     <strong>
-                      {deviceRole === "admin"
-                        ? "Admin"
-                        : squadre.find((s) => s.id === deviceRole)?.nome || "Squadra non trovata"}
+                      {squadre.find((s) => s.id === deviceRole)?.nome || "Squadra non trovata"}
                     </strong>
                   </span>
                   <button className="fk-link-btn" onClick={() => impostaRuoloDispositivo(null)}>
@@ -591,66 +589,93 @@ export default function AstaRoom() {
                   </button>
                 </div>
 
-                {deviceRole === "admin" ? (
-                  <div className="fk-card">
-                    {!astaLive || !astaLive.attiva ? (
-                      <>
-                        <h3 className="fk-h3">Avvia una nuova asta</h3>
-                        <div className="fk-field-row">
-                          <label>
-                            Nome giocatore
-                            <input
-                              type="text"
-                              value={liveForm.nome}
-                              placeholder="es. Lautaro Martinez"
-                              onChange={(e) => setLiveForm((f) => ({ ...f, nome: e.target.value }))}
-                            />
-                          </label>
-                          <label>
-                            Offerta di partenza
-                            <input
-                              type="number"
-                              min={1}
-                              value={liveForm.offertaBase}
-                              onChange={(e) =>
-                                setLiveForm((f) => ({ ...f, offertaBase: e.target.value }))
-                              }
-                            />
-                          </label>
-                        </div>
-                        <div className="fk-block">
-                          <span className="fk-label">Ruolo</span>
-                          <div className="fk-choice-grid">
-                            {RUOLI.map((r) => {
-                              const attivo = liveForm.ruolo === r.key;
-                              return (
-                                <button
-                                  key={r.key}
-                                  type="button"
-                                  className={attivo ? "fk-choice fk-choice-active" : "fk-choice"}
-                                  style={
-                                    attivo
-                                      ? { background: r.colore, borderColor: r.colore, color: "#fff" }
-                                      : undefined
-                                  }
-                                  onClick={() => setLiveForm((f) => ({ ...f, ruolo: r.key }))}
-                                >
-                                  {r.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                        {liveErr && (
-                          <p className="fk-error">
-                            <AlertTriangle size={14} /> {liveErr}
+                <div className="fk-card">
+                  {(() => {
+                    const miaSquadra = squadre.find((s) => s.id === deviceRole);
+                    if (!miaSquadra) {
+                      return (
+                        <p className="fk-error">
+                          <AlertTriangle size={14} /> Squadra non trovata su questo dispositivo,
+                          scegli di nuovo.
+                        </p>
+                      );
+                    }
+
+                    if (!astaLive || !astaLive.attiva) {
+                      return (
+                        <>
+                          <h3 className="fk-h3">Metti all'asta un giocatore</h3>
+                          <p className="fk-hint">
+                            Chiunque può avviarla: scrivi il giocatore, il ruolo e l'offerta di
+                            partenza, poi tutti rilanciano da qui.
                           </p>
-                        )}
-                        <button className="fk-primary" onClick={avviaAstaLive}>
-                          Avvia asta
-                        </button>
-                      </>
-                    ) : (
+                          <div className="fk-field-row">
+                            <label>
+                              Nome giocatore
+                              <input
+                                type="text"
+                                value={liveForm.nome}
+                                placeholder="es. Lautaro Martinez"
+                                onChange={(e) => setLiveForm((f) => ({ ...f, nome: e.target.value }))}
+                              />
+                            </label>
+                            <label>
+                              Offerta di partenza
+                              <input
+                                type="number"
+                                min={1}
+                                value={liveForm.offertaBase}
+                                onChange={(e) =>
+                                  setLiveForm((f) => ({ ...f, offertaBase: e.target.value }))
+                                }
+                              />
+                            </label>
+                          </div>
+                          <div className="fk-block">
+                            <span className="fk-label">Ruolo</span>
+                            <div className="fk-choice-grid">
+                              {RUOLI.map((r) => {
+                                const attivo = liveForm.ruolo === r.key;
+                                return (
+                                  <button
+                                    key={r.key}
+                                    type="button"
+                                    className={attivo ? "fk-choice fk-choice-active" : "fk-choice"}
+                                    style={
+                                      attivo
+                                        ? { background: r.colore, borderColor: r.colore, color: "#fff" }
+                                        : undefined
+                                    }
+                                    onClick={() => setLiveForm((f) => ({ ...f, ruolo: r.key }))}
+                                  >
+                                    {r.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          {liveErr && (
+                            <p className="fk-error">
+                              <AlertTriangle size={14} /> {liveErr}
+                            </p>
+                          )}
+                          <button className="fk-primary" onClick={avviaAstaLive}>
+                            Avvia asta
+                          </button>
+                          <p className="fk-hint" style={{ marginTop: 14 }}>
+                            Crediti residui di {miaSquadra.nome}:{" "}
+                            <strong>{creditiResidui(miaSquadra, config.budget)}</strong>
+                          </p>
+                        </>
+                      );
+                    }
+
+                    const residui = creditiResidui(miaSquadra, config.budget);
+                    const sonoIoInTesta = astaLive.squadraOfferenteId === miaSquadra.id;
+                    const ruoloPienoLive =
+                      occupati(miaSquadra, astaLive.ruolo) >= config.slot[astaLive.ruolo];
+                    const disabilitato = sonoIoInTesta || ruoloPienoLive;
+                    return (
                       <>
                         <h3 className="fk-h3">Asta in corso</h3>
                         <p className="fk-live-player">
@@ -664,19 +689,63 @@ export default function AstaRoom() {
                         </p>
                         <p className="fk-bid-value">{astaLive.offertaCorrente} crediti</p>
                         <p className="fk-hint">
-                          {astaLive.squadraOfferenteNome ? (
+                          {sonoIoInTesta ? (
+                            <span className="fk-leading">
+                              <Crown size={14} /> Stai offrendo tu ({miaSquadra.nome})
+                            </span>
+                          ) : astaLive.squadraOfferenteNome ? (
                             <>
                               Offerta più alta: <strong>{astaLive.squadraOfferenteNome}</strong>
                             </>
                           ) : (
                             "Nessuna offerta ancora"
                           )}
+                          {" · "}Tuoi crediti residui: <strong>{residui}</strong>
                         </p>
+                        {ruoloPienoLive && (
+                          <p className="fk-warn">Hai già completato questo reparto, non puoi offrire.</p>
+                        )}
                         {liveErr && (
                           <p className="fk-error">
                             <AlertTriangle size={14} /> {liveErr}
                           </p>
                         )}
+                        <div className="fk-live-actions">
+                          <button
+                            className="fk-primary fk-bid-btn"
+                            disabled={disabilitato}
+                            onClick={() => faiOfferta(astaLive.offertaCorrente + 1)}
+                          >
+                            Rilancia a {astaLive.offertaCorrente + 1}
+                          </button>
+                        </div>
+                        <div className="fk-field-row" style={{ marginTop: 12 }}>
+                          <label>
+                            Offerta personalizzata
+                            <input
+                              type="number"
+                              min={astaLive.offertaCorrente + 1}
+                              value={bidValue}
+                              placeholder={`> ${astaLive.offertaCorrente}`}
+                              onChange={(e) => setBidValue(e.target.value)}
+                            />
+                          </label>
+                          <button
+                            className="fk-secondary"
+                            disabled={disabilitato}
+                            onClick={() => faiOfferta(bidValue)}
+                          >
+                            Invia offerta
+                          </button>
+                        </div>
+
+                        <h3 className="fk-h3" style={{ marginTop: 20 }}>
+                          Chiudi l'asta
+                        </h3>
+                        <p className="fk-hint">
+                          Quando nessuno rilancia più, chi vuole può assegnare il giocatore
+                          all'offerta più alta.
+                        </p>
                         <div className="fk-live-actions">
                           <button
                             className="fk-primary"
@@ -689,6 +758,7 @@ export default function AstaRoom() {
                             Annulla asta
                           </button>
                         </div>
+
                         {astaLive.storico && astaLive.storico.length > 0 && (
                           <div className="fk-history">
                             <h4>Rilanci recenti</h4>
@@ -707,106 +777,9 @@ export default function AstaRoom() {
                           </div>
                         )}
                       </>
-                    )}
-                  </div>
-                ) : (
-                  <div className="fk-card">
-                    {(() => {
-                      const miaSquadra = squadre.find((s) => s.id === deviceRole);
-                      if (!miaSquadra) {
-                        return (
-                          <p className="fk-error">
-                            <AlertTriangle size={14} /> Squadra non trovata su questo dispositivo,
-                            scegli di nuovo.
-                          </p>
-                        );
-                      }
-                      if (!astaLive || !astaLive.attiva) {
-                        return (
-                          <>
-                            <h3 className="fk-h3">In attesa…</h3>
-                            <p className="fk-hint">L'admin non ha ancora avviato un'asta.</p>
-                            <p className="fk-hint">
-                              Crediti residui: <strong>{creditiResidui(miaSquadra, config.budget)}</strong>
-                            </p>
-                          </>
-                        );
-                      }
-                      const residui = creditiResidui(miaSquadra, config.budget);
-                      const sonoIoInTesta = astaLive.squadraOfferenteId === miaSquadra.id;
-                      const ruoloPienoLive =
-                        occupati(miaSquadra, astaLive.ruolo) >= config.slot[astaLive.ruolo];
-                      const disabilitato = sonoIoInTesta || ruoloPienoLive;
-                      return (
-                        <>
-                          <h3 className="fk-h3">{miaSquadra.nome}</h3>
-                          <p className="fk-live-player">
-                            <span
-                              className="fk-chip"
-                              style={{ background: RUOLI.find((r) => r.key === astaLive.ruolo).colore }}
-                            >
-                              {astaLive.ruolo}
-                            </span>
-                            <strong>{astaLive.giocatore}</strong>
-                          </p>
-                          <p className="fk-bid-value">{astaLive.offertaCorrente} crediti</p>
-                          <p className="fk-hint">
-                            {sonoIoInTesta ? (
-                              <span className="fk-leading">
-                                <Crown size={14} /> Stai offrendo tu
-                              </span>
-                            ) : astaLive.squadraOfferenteNome ? (
-                              <>
-                                In testa: <strong>{astaLive.squadraOfferenteNome}</strong>
-                              </>
-                            ) : (
-                              "Nessuna offerta ancora"
-                            )}
-                            {" · "}Tuoi crediti residui: <strong>{residui}</strong>
-                          </p>
-                          {ruoloPienoLive && (
-                            <p className="fk-warn">
-                              Hai già completato questo reparto, non puoi offrire.
-                            </p>
-                          )}
-                          {liveErr && (
-                            <p className="fk-error">
-                              <AlertTriangle size={14} /> {liveErr}
-                            </p>
-                          )}
-                          <div className="fk-live-actions">
-                            <button
-                              className="fk-primary fk-bid-btn"
-                              disabled={disabilitato}
-                              onClick={() => faiOfferta(astaLive.offertaCorrente + 1)}
-                            >
-                              Rilancia a {astaLive.offertaCorrente + 1}
-                            </button>
-                          </div>
-                          <div className="fk-field-row" style={{ marginTop: 12 }}>
-                            <label>
-                              Offerta personalizzata
-                              <input
-                                type="number"
-                                min={astaLive.offertaCorrente + 1}
-                                value={bidValue}
-                                placeholder={`> ${astaLive.offertaCorrente}`}
-                                onChange={(e) => setBidValue(e.target.value)}
-                              />
-                            </label>
-                            <button
-                              className="fk-secondary"
-                              disabled={disabilitato}
-                              onClick={() => faiOfferta(bidValue)}
-                            >
-                              Invia offerta
-                            </button>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                )}
+                    );
+                  })()}
+                </div>
             </>
           </section>
         )}

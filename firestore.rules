@@ -1,0 +1,14 @@
+rules_version = '2';
+
+// Regole volutamente semplici: chiunque conosca il codice di un'asta
+// (6 caratteri, ~1 miliardo di combinazioni) può leggerla e modificarla.
+// Non c'è login: è lo stesso modello "di fiducia tra amici" già usato
+// prima. Se in futuro vuoi account e permessi veri, qui è il punto
+// da cui partire per aggiungere l'autenticazione Firebase.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /aste/{codice} {
+      allow read, write: if true;
+    }
+  }
+}

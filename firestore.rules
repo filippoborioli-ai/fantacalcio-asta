@@ -10,5 +10,11 @@ service cloud.firestore {
     match /aste/{codice} {
       allow read, write: if true;
     }
+    // Listone giocatori Serie A: condiviso tra tutte le aste, non legato a
+    // un codice. Stesso modello di fiducia: chi ha accesso all'app lo può
+    // aggiornare (es. a inizio stagione con le nuove quotazioni).
+    match /listoni/{listino} {
+      allow read, write: if true;
+    }
   }
 }

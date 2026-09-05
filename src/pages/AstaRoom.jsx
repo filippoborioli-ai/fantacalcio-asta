@@ -11,6 +11,8 @@ import {
   creditiResidui,
   postiLiberiTotali,
 } from "../lib/model.js";
+import { subscribeListone, salvaListone, estraiGiocatoriDaFile } from "../lib/listone.js";
+import GiocatoreInput from "../components/GiocatoreInput.jsx";
 import {
   Trash2,
   AlertTriangle,
@@ -21,6 +23,7 @@ import {
   X,
   Plus,
   Download,
+  Upload,
   Crown,
   Copy,
   Lock,
@@ -59,6 +62,9 @@ export default function AstaRoom() {
   const [copiato, setCopiato] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamErr, setNewTeamErr] = useState("");
+  const [listoneDoc, setListoneDoc] = useState(null);
+  const [caricandoListone, setCaricandoListone] = useState(false);
+  const [listoneErr, setListoneErr] = useState("");
 
   // Sottoscrizione realtime al documento dell'asta
   useEffect(() => {
@@ -75,6 +81,24 @@ export default function AstaRoom() {
     );
     return () => unsub();
   }, [ref]);
+
+  // Listone Serie A: condiviso tra tutte le aste, non serve ricaricarlo ogni
+  // volta né aggiornare il codice ogni stagione, basta ricaricare il file.
+  useEffect(() => subscribeListone(setListoneDoc), []);
+  const listone = listoneDoc?.giocatori || [];
+
+  const caricaListone = async (file) => {
+    setListoneErr("");
+    setCaricandoListone(true);
+    try {
+      const giocatori = await estraiGiocatoriDaFile(file);
+      await salvaListone(giocatori);
+    } catch (e) {
+      setListoneErr(e.message || "Errore nella lettura del file.");
+    } finally {
+      setCaricandoListone(false);
+    }
+  };
 
   // Inizializzo le bozze di configurazione (solo se l'asta non è ancora iniziata) una sola volta
   useEffect(() => {
@@ -533,6 +557,40 @@ export default function AstaRoom() {
                 modificarle.
               </div>
             )}
+            <h3 className="fk-h3">Elenco giocatori Serie A</h3>
+            <p className="fk-hint">
+              Carica il file Excel delle quotazioni fantacalcio (foglio "Tutti", colonne Id/R/Nome/
+              Squadra): abilita l'autocompletamento nome→ruolo+squadra ovunque scrivi un giocatore.
+              È condiviso tra tutte le aste: lo ricarichi una volta a stagione, non serve rifarlo qui
+              ogni volta.
+            </p>
+            <label className="fk-upload-btn">
+              <Upload size={14} />
+              {caricandoListone ? "Carico…" : "Carica file Excel"}
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                hidden
+                disabled={caricandoListone}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) caricaListone(file);
+                }}
+              />
+            </label>
+            {listoneErr && (
+              <p className="fk-error">
+                <AlertTriangle size={14} /> {listoneErr}
+              </p>
+            )}
+            <p className="fk-hint">
+              {listoneDoc
+                ? `Elenco caricato: ${listoneDoc.numeroGiocatori} giocatori.`
+                : "Nessun elenco caricato ancora: i campi nome restano comunque scrivibili a mano."}
+            </p>
+
+            <h3 className="fk-h3">Impostazioni asta</h3>
             <div className="fk-field-row">
               <label>
                 Crediti iniziali
@@ -620,11 +678,12 @@ export default function AstaRoom() {
                           <div className="fk-field-row">
                             <label>
                               Nome giocatore
-                              <input
-                                type="text"
+                              <GiocatoreInput
                                 value={liveForm.nome}
                                 placeholder="es. Lautaro Martinez"
-                                onChange={(e) => setLiveForm((f) => ({ ...f, nome: e.target.value }))}
+                                listone={listone}
+                                onChangeValue={(v) => setLiveForm((f) => ({ ...f, nome: v }))}
+                                onPick={(g) => setLiveForm((f) => ({ ...f, nome: g.nome, ruolo: g.ruolo }))}
                               />
                             </label>
                             <label>
@@ -934,11 +993,12 @@ export default function AstaRoom() {
                   <div className="fk-quickadd">
                     <h4>Aggiungi giocatore</h4>
                     <div className="fk-quickadd-row">
-                      <input
-                        type="text"
-                        placeholder="Nome"
+                      <GiocatoreInput
                         value={(quickAdd[s.id] || {}).nome || ""}
-                        onChange={(e) => setQuick(s.id, { nome: e.target.value })}
+                        placeholder="Nome"
+                        listone={listone}
+                        onChangeValue={(v) => setQuick(s.id, { nome: v })}
+                        onPick={(g) => setQuick(s.id, { nome: g.nome, ruolo: g.ruolo })}
                       />
                       <select
                         value={(quickAdd[s.id] || {}).ruolo || "P"}

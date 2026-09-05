@@ -408,6 +408,60 @@ export default function AstaRoom() {
 
   if (!stato) return null;
 
+  // Prima di vedere l'asta, chi entra con il codice deve dire chi è: così
+  // registra subito la propria squadra (o si dichiara admin), invece di
+  // trovarsi il cruscotto e doverlo scoprire da solo dentro "Asta Live".
+  if (asta_iniziata && deviceRole === null) {
+    return (
+      <div className="fk-root">
+        <header className="fk-header">
+          <div className="fk-masthead">
+            <h1>{stato.nome || "Asta del Fanta"}</h1>
+            <p className="fk-sub">Prima di entrare, dicci chi sei su questo dispositivo.</p>
+          </div>
+          <div className="fk-rule" />
+        </header>
+        <main className="fk-main">
+          <div className="fk-card">
+            <h3 className="fk-h3">Chi sei su questo dispositivo?</h3>
+            <p className="fk-hint">La scelta resta salvata solo su questo dispositivo/browser.</p>
+            <div className="fk-choice-grid" style={{ marginTop: 14 }}>
+              <button className="fk-choice" onClick={() => impostaRuoloDispositivo("admin")}>
+                Admin (banditore)
+              </button>
+              {squadre.map((s) => (
+                <button key={s.id} className="fk-choice" onClick={() => impostaRuoloDispositivo(s.id)}>
+                  {s.nome}
+                </button>
+              ))}
+            </div>
+
+            <h3 className="fk-h3" style={{ marginTop: 20 }}>
+              Non vedi la tua squadra?
+            </h3>
+            <div className="fk-join-slot" style={{ maxWidth: 320 }}>
+              <input
+                type="text"
+                placeholder="Nome della tua squadra"
+                value={newTeamName}
+                onChange={(e) => setNewTeamName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && aggiungiSquadra()}
+              />
+              <button className="fk-choice" onClick={aggiungiSquadra}>
+                + Crea la mia squadra
+              </button>
+              {newTeamErr && (
+                <p className="fk-error fk-error-small">
+                  <AlertTriangle size={12} /> {newTeamErr}
+                </p>
+              )}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="fk-root">
       <header className="fk-header">
@@ -522,50 +576,7 @@ export default function AstaRoom() {
 
         {tab === "live" && asta_iniziata && (
           <section className="fk-live-wrap">
-            {deviceRole === null && (
-              <div className="fk-card">
-                <h3 className="fk-h3">Chi sei su questo dispositivo?</h3>
-                <p className="fk-hint">La scelta resta salvata solo su questo dispositivo/browser.</p>
-                <div className="fk-choice-grid" style={{ marginTop: 14 }}>
-                  <button className="fk-choice" onClick={() => impostaRuoloDispositivo("admin")}>
-                    Admin (banditore)
-                  </button>
-                  {squadre.map((s) => (
-                    <button
-                      key={s.id}
-                      className="fk-choice"
-                      onClick={() => impostaRuoloDispositivo(s.id)}
-                    >
-                      {s.nome}
-                    </button>
-                  ))}
-                </div>
-
-                <h3 className="fk-h3" style={{ marginTop: 20 }}>
-                  Non vedi la tua squadra?
-                </h3>
-                <div className="fk-join-slot" style={{ maxWidth: 320 }}>
-                  <input
-                    type="text"
-                    placeholder="Nome della tua squadra"
-                    value={newTeamName}
-                    onChange={(e) => setNewTeamName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && aggiungiSquadra()}
-                  />
-                  <button className="fk-choice" onClick={aggiungiSquadra}>
-                    + Crea la mia squadra
-                  </button>
-                  {newTeamErr && (
-                    <p className="fk-error fk-error-small">
-                      <AlertTriangle size={12} /> {newTeamErr}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {deviceRole !== null && (
-              <>
+            <>
                 <div className="fk-live-you">
                   <span>
                     Tu sei:{" "}
@@ -796,8 +807,7 @@ export default function AstaRoom() {
                     })()}
                   </div>
                 )}
-              </>
-            )}
+            </>
           </section>
         )}
 

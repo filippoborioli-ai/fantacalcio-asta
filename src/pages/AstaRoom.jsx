@@ -12,7 +12,6 @@ import {
 } from "../lib/model.js";
 import {
   Trash2,
-  RotateCcw,
   AlertTriangle,
   Coins,
   ShieldCheck,
@@ -108,20 +107,6 @@ export default function AstaRoom() {
       squadre: [],
     });
     setTab("live");
-  };
-
-  const resetTutto = async () => {
-    if (!window.confirm("Ricominciare da capo? Tutti i dati dell'asta andranno persi.")) return;
-    const nuovoConfig = defaultConfig();
-    await updateDoc(ref, {
-      config: nuovoConfig,
-      squadre: null,
-      astaLive: null,
-    });
-    setConfigDraft(nuovoConfig);
-    setErrore("");
-    setTab("setup");
-    impostaRuoloDispositivo(null);
   };
 
   // Assegnazioni transazionali: leggono lo stato più fresco dal server prima di scrivere,
@@ -504,11 +489,6 @@ export default function AstaRoom() {
         {asta_iniziata && (
           <button className="fk-secondary fk-export-nav" onClick={esportaExcel}>
             <Download size={14} /> Esporta in Excel
-          </button>
-        )}
-        {asta_iniziata && (
-          <button className="fk-reset" onClick={resetTutto} title="Ricomincia">
-            <RotateCcw size={15} /> nuova asta
           </button>
         )}
       </nav>

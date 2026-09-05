@@ -9,6 +9,7 @@ import {
   occupati,
   creditiSpesi,
   creditiResidui,
+  postiLiberiTotali,
 } from "../lib/model.js";
 import {
   Trash2,
@@ -132,7 +133,14 @@ export default function AstaRoom() {
             );
           }
           const residui = creditiResidui(squadra, dati.config.budget);
-          if (crediti > residui) {
+          const postiLiberi = postiLiberiTotali(squadra, dati.config.slot);
+          const maxAmmessi = residui - Math.max(0, postiLiberi - 1);
+          if (crediti > maxAmmessi) {
+            if (postiLiberi > 1) {
+              throw new Error(
+                `${squadra.nome} deve lasciare almeno 1 credito per ciascuno degli altri ${postiLiberi - 1} posti ancora liberi in rosa: può spendere al massimo ${maxAmmessi}.`
+              );
+            }
             throw new Error(`Crediti insufficienti: ${squadra.nome} ha solo ${residui} crediti residui.`);
           }
           const nuovoGiocatore = { id: uid(), nome, ruolo, crediti };
@@ -181,8 +189,15 @@ export default function AstaRoom() {
           const giocatore = squadra.giocatori.find((g) => g.id === giocatoreId);
           if (!giocatore) throw new Error("Giocatore non trovato.");
           const spesiAltri = creditiSpesi(squadra) - giocatore.crediti;
-          const maxAmmesso = dati.config.budget - spesiAltri;
+          // Il posto di questo giocatore è già occupato: la riserva va sui posti ANCORA vuoti.
+          const postiLiberi = postiLiberiTotali(squadra, dati.config.slot);
+          const maxAmmesso = dati.config.budget - spesiAltri - postiLiberi;
           if (nuoviCrediti > maxAmmesso) {
+            if (postiLiberi > 0) {
+              throw new Error(
+                `Puoi assegnare al massimo ${maxAmmesso} crediti: bisogna lasciare almeno 1 credito per ciascuno degli altri ${postiLiberi} posti ancora liberi in rosa.`
+              );
+            }
             throw new Error(
               `Puoi assegnare al massimo ${maxAmmesso} crediti a questo giocatore, oltre il budget totale della squadra.`
             );
@@ -318,7 +333,16 @@ export default function AstaRoom() {
             );
           }
           const residui = creditiResidui(squadra, dati.config.budget);
-          if (valore > residui) throw new Error(`Non hai abbastanza crediti (residui: ${residui}).`);
+          const postiLiberi = postiLiberiTotali(squadra, dati.config.slot);
+          const maxOfferta = residui - Math.max(0, postiLiberi - 1);
+          if (valore > maxOfferta) {
+            if (postiLiberi > 1) {
+              throw new Error(
+                `Devi lasciare almeno 1 credito per ciascuno degli altri ${postiLiberi - 1} posti ancora liberi in rosa: puoi offrire al massimo ${maxOfferta}.`
+              );
+            }
+            throw new Error(`Non hai abbastanza crediti (residui: ${residui}).`);
+          }
           if (live.squadraOfferenteId === squadra.id)
             throw new Error("Stai già facendo l'offerta più alta.");
           if (valore <= live.offertaCorrente)
@@ -655,10 +679,13 @@ export default function AstaRoom() {
                     }
 
                     const residui = creditiResidui(miaSquadra, config.budget);
+                    const postiLiberiMia = postiLiberiTotali(miaSquadra, config.slot);
+                    const maxOffertaMia = residui - Math.max(0, postiLiberiMia - 1);
                     const sonoIoInTesta = astaLive.squadraOfferenteId === miaSquadra.id;
                     const ruoloPienoLive =
                       occupati(miaSquadra, astaLive.ruolo) >= config.slot[astaLive.ruolo];
-                    const disabilitato = sonoIoInTesta || ruoloPienoLive;
+                    const oltreTetto = astaLive.offertaCorrente + 1 > maxOffertaMia;
+                    const disabilitato = sonoIoInTesta || ruoloPienoLive || oltreTetto;
                     return (
                       <>
                         <h3 className="fk-h3">Asta in corso</h3>
@@ -686,8 +713,20 @@ export default function AstaRoom() {
                           )}
                           {" · "}Tuoi crediti residui: <strong>{residui}</strong>
                         </p>
+                        {postiLiberiMia > 1 && (
+                          <p className="fk-hint">
+                            Ti restano {postiLiberiMia} posti da riempire in rosa (questo incluso): puoi
+                            offrire al massimo <strong>{maxOffertaMia}</strong>, per lasciare almeno 1
+                            credito agli altri {postiLiberiMia - 1}.
+                          </p>
+                        )}
                         {ruoloPienoLive && (
                           <p className="fk-warn">Hai già completato questo reparto, non puoi offrire.</p>
+                        )}
+                        {!ruoloPienoLive && !sonoIoInTesta && oltreTetto && (
+                          <p className="fk-warn">
+                            Non puoi rilanciare: supereresti il massimo di {maxOffertaMia} crediti.
+                          </p>
                         )}
                         {liveErr && (
                           <p className="fk-error">
@@ -709,6 +748,7 @@ export default function AstaRoom() {
                             <input
                               type="number"
                               min={astaLive.offertaCorrente + 1}
+                              max={maxOffertaMia}
                               value={bidValue}
                               placeholder={`> ${astaLive.offertaCorrente}`}
                               onChange={(e) => setBidValue(e.target.value)}

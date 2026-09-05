@@ -9,7 +9,6 @@ import {
   occupati,
   creditiSpesi,
   creditiResidui,
-  postiLiberiTotali,
 } from "../lib/model.js";
 import {
   Trash2,
@@ -47,9 +46,7 @@ export default function AstaRoom() {
     }
   });
 
-  const [form, setForm] = useState({ nome: "", ruolo: "P", squadraId: "", crediti: "" });
   const [errore, setErrore] = useState("");
-  const [ultimaAggiunta, setUltimaAggiunta] = useState(null);
   const [quickAdd, setQuickAdd] = useState({});
   const [quickErr, setQuickErr] = useState({});
   const [editingId, setEditingId] = useState(null);
@@ -109,7 +106,7 @@ export default function AstaRoom() {
       config: configDraft,
       squadre: [],
     });
-    setTab("asta");
+    setTab("live");
   };
 
   const resetTutto = async () => {
@@ -122,18 +119,9 @@ export default function AstaRoom() {
     });
     setConfigDraft(nuovoConfig);
     setErrore("");
-    setUltimaAggiunta(null);
-    setForm({ nome: "", ruolo: "P", squadraId: "", crediti: "" });
     setTab("setup");
     impostaRuoloDispositivo(null);
   };
-
-  const squadraSelezionata = useMemo(
-    () => squadre?.find((s) => s.id === form.squadraId) || null,
-    [squadre, form.squadraId]
-  );
-  const ruoloPieno =
-    squadraSelezionata && occupati(squadraSelezionata, form.ruolo) >= config.slot[form.ruolo];
 
   // Assegnazioni transazionali: leggono lo stato più fresco dal server prima di scrivere,
   // così due assegnazioni quasi simultanee non si sovrascrivono a vicenda.
@@ -145,7 +133,6 @@ export default function AstaRoom() {
       if (!squadraId) return "Seleziona la squadra aggiudicataria.";
       if (!Number.isFinite(crediti) || crediti < 1)
         return "Inserisci un numero di crediti valido (minimo 1).";
-      let risultato = null;
       try {
         await runTransaction(db, async (tx) => {
           const snap = await tx.get(ref);
@@ -166,9 +153,7 @@ export default function AstaRoom() {
             s.id === squadra.id ? { ...s, giocatori: [...s.giocatori, nuovoGiocatore] } : s
           );
           tx.update(ref, { squadre: nuoveSquadre });
-          risultato = { squadraNome: squadra.nome, giocatore: nuovoGiocatore };
         });
-        if (risultato) setUltimaAggiunta(risultato);
         return null;
       } catch (e) {
         return e.message || "Errore nell'assegnazione.";
@@ -176,13 +161,6 @@ export default function AstaRoom() {
     },
     [ref]
   );
-
-  const handleAssegna = useCallback(async () => {
-    const err = await assegnaGiocatore(form.squadraId, form.ruolo, form.nome, form.crediti);
-    if (err) return setErrore(err);
-    setErrore("");
-    setForm((f) => ({ ...f, nome: "", crediti: "" }));
-  }, [form, assegnaGiocatore]);
 
   const handleQuickAdd = useCallback(
     async (squadraId) => {
@@ -455,13 +433,6 @@ export default function AstaRoom() {
           Impostazioni
         </button>
         <button
-          className={tab === "asta" ? "fk-tab fk-tab-active" : "fk-tab"}
-          onClick={() => asta_iniziata && setTab("asta")}
-          disabled={!asta_iniziata}
-        >
-          Asta
-        </button>
-        <button
           className={tab === "live" ? "fk-tab fk-tab-active" : "fk-tab"}
           onClick={() => asta_iniziata && setTab("live")}
           disabled={!asta_iniziata}
@@ -546,128 +517,6 @@ export default function AstaRoom() {
                 Inizia l'asta
               </button>
             )}
-          </section>
-        )}
-
-        {tab === "asta" && asta_iniziata && (
-          <section className="fk-asta-grid">
-            <div className="fk-card">
-              <h3 className="fk-h3">Assegna giocatore</h3>
-
-              <div className="fk-field-row">
-                <label>
-                  Nome giocatore
-                  <input
-                    type="text"
-                    value={form.nome}
-                    placeholder="es. Lautaro Martinez"
-                    onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Crediti pagati
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.crediti}
-                    onChange={(e) => setForm((f) => ({ ...f, crediti: e.target.value }))}
-                  />
-                </label>
-              </div>
-
-              <div className="fk-block">
-                <span className="fk-label">Ruolo</span>
-                <div className="fk-choice-grid">
-                  {RUOLI.map((r) => {
-                    const attivo = form.ruolo === r.key;
-                    return (
-                      <button
-                        key={r.key}
-                        type="button"
-                        className={attivo ? "fk-choice fk-choice-active" : "fk-choice"}
-                        style={attivo ? { background: r.colore, borderColor: r.colore, color: "#fff" } : undefined}
-                        onClick={() => setForm((f) => ({ ...f, ruolo: r.key }))}
-                      >
-                        {r.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="fk-block">
-                <span className="fk-label">Squadra aggiudicataria</span>
-                {squadre.length === 0 ? (
-                  <p className="fk-hint">
-                    Nessuna squadra ancora: fai entrare i tuoi amici con il codice, si registrano
-                    da soli dalla scheda "Asta Live".
-                  </p>
-                ) : (
-                  <div className="fk-choice-grid">
-                    {squadre.map((s) => {
-                      const piena = postiLiberiTotali(s, config.slot) === 0;
-                      const attivo = form.squadraId === s.id;
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          disabled={piena}
-                          className={attivo ? "fk-choice fk-choice-active" : "fk-choice"}
-                          onClick={() => setForm((f) => ({ ...f, squadraId: s.id }))}
-                          title={piena ? "Rosa completa" : undefined}
-                        >
-                          {s.nome}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {squadraSelezionata && (
-                <p className="fk-hint">
-                  <strong>{squadraSelezionata.nome}</strong> ·{" "}
-                  {creditiResidui(squadraSelezionata, config.budget)} crediti residui
-                  {ruoloPieno && (
-                    <span className="fk-warn">
-                      {" "}
-                      — reparto {RUOLI.find((r) => r.key === form.ruolo).label.toLowerCase()} già al
-                      completo
-                    </span>
-                  )}
-                </p>
-              )}
-
-              {errore && (
-                <p className="fk-error">
-                  <AlertTriangle size={14} /> {errore}
-                </p>
-              )}
-
-              <button className="fk-primary" onClick={handleAssegna}>
-                Assegna
-              </button>
-            </div>
-
-            <div className="fk-card fk-last">
-              <h3 className="fk-h3">Ultima assegnazione</h3>
-              {ultimaAggiunta ? (
-                <p className="fk-last-line">
-                  <span
-                    className="fk-chip"
-                    style={{
-                      background: RUOLI.find((r) => r.key === ultimaAggiunta.giocatore.ruolo).colore,
-                    }}
-                  >
-                    {ultimaAggiunta.giocatore.ruolo}
-                  </span>
-                  <strong>{ultimaAggiunta.giocatore.nome}</strong> a {ultimaAggiunta.squadraNome} per{" "}
-                  {ultimaAggiunta.giocatore.crediti} crediti
-                </p>
-              ) : (
-                <p className="fk-hint">Nessuna assegnazione ancora effettuata.</p>
-              )}
-            </div>
           </section>
         )}
 

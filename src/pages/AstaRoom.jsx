@@ -571,9 +571,6 @@ export default function AstaRoom() {
                       {squadre.find((s) => s.id === deviceRole)?.nome || "Squadra non trovata"}
                     </strong>
                   </span>
-                  <button className="fk-link-btn" onClick={() => impostaRuoloDispositivo(null)}>
-                    cambia
-                  </button>
                 </div>
 
                 <div className="fk-card">

@@ -23,6 +23,7 @@ import {
   Crown,
   Copy,
   Lock,
+  LogOut,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -458,9 +459,14 @@ export default function AstaRoom() {
               ? `${squadre.length} squadre iscritte · ${config.budget} crediti a testa · P ${config.slot.P} · D ${config.slot.D} · C ${config.slot.C} · A ${config.slot.A}`
               : "Configura l'asta qui sotto"}
           </p>
-          <button className="fk-code-badge" onClick={copiaCodice} title="Copia il codice">
-            Codice: <strong>{codice}</strong> <Copy size={13} /> {copiato ? "copiato!" : ""}
-          </button>
+          <div className="fk-masthead-actions">
+            <button className="fk-code-badge" onClick={copiaCodice} title="Copia il codice">
+              Codice: <strong>{codice}</strong> <Copy size={13} /> {copiato ? "copiato!" : ""}
+            </button>
+            <Link to="/" className="fk-link-btn">
+              <LogOut size={13} /> Esci dall'asta
+            </Link>
+          </div>
         </div>
         <div className="fk-rule" />
       </header>

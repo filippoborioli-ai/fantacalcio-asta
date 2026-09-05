@@ -57,7 +57,7 @@ export default function AstaRoom() {
   const [quickErr, setQuickErr] = useState({});
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState("");
-  const [liveForm, setLiveForm] = useState({ nome: "", ruolo: "P", offertaBase: "1", countdownSec: "20" });
+  const [liveForm, setLiveForm] = useState({ nome: "", ruolo: "P", offertaBase: "1" });
   const [bidValue, setBidValue] = useState("");
   const [liveErr, setLiveErr] = useState("");
   const [copiato, setCopiato] = useState(false);
@@ -69,6 +69,7 @@ export default function AstaRoom() {
   const [secondiRimanenti, setSecondiRimanenti] = useState(null);
   const [dispRuolo, setDispRuolo] = useState("TUTTI");
   const [dispQuery, setDispQuery] = useState("");
+  const [sbloccaImpostazioni, setSbloccaImpostazioni] = useState(false);
 
   // Sottoscrizione realtime al documento dell'asta
   useEffect(() => {
@@ -107,7 +108,7 @@ export default function AstaRoom() {
   // Inizializzo le bozze di configurazione (solo se l'asta non è ancora iniziata) una sola volta
   useEffect(() => {
     if (stato && !draftInitRef.current) {
-      setConfigDraft(stato.config || defaultConfig());
+      setConfigDraft({ ...defaultConfig(), ...(stato.config || {}) });
       draftInitRef.current = true;
     }
   }, [stato]);
@@ -142,7 +143,7 @@ export default function AstaRoom() {
       .filter((g) => dispRuolo === "TUTTI" || g.ruolo === dispRuolo)
       .filter((g) => !assegnati.has(normalizza(g.nome)))
       .filter((g) => !q || normalizza(g.nome).includes(q))
-      .sort((a, b) => a.nome.localeCompare(b.nome));
+      .sort((a, b) => b.quotazione - a.quotazione || a.nome.localeCompare(b.nome));
   }, [listone, squadre, dispRuolo, dispQuery]);
 
   const iniziaAsta = async () => {
@@ -153,6 +154,16 @@ export default function AstaRoom() {
       squadre: [],
     });
     setTab("live");
+  };
+
+  const sblocca = () => {
+    setConfigDraft({ ...defaultConfig(), ...stato.config });
+    setSbloccaImpostazioni(true);
+  };
+
+  const salvaImpostazioni = async () => {
+    await updateDoc(ref, { config: configDraft });
+    setSbloccaImpostazioni(false);
   };
 
   // Assegnazioni transazionali: leggono lo stato più fresco dal server prima di scrivere,
@@ -320,7 +331,7 @@ export default function AstaRoom() {
     setLiveErr("");
     const nome = liveForm.nome.trim();
     const base = parseInt(liveForm.offertaBase, 10);
-    const durata = Math.max(5, Math.min(300, parseInt(liveForm.countdownSec, 10) || 20));
+    const durata = Math.max(5, Math.min(300, parseInt(config.countdownSec, 10) || 20));
     if (!nome) return setLiveErr("Inserisci il nome del giocatore.");
     if (!Number.isFinite(base) || base < 1) return setLiveErr("Offerta di partenza non valida.");
     const giaAssegnato = trovaGiocatoreAssegnato(squadre || [], nome);
@@ -343,7 +354,7 @@ export default function AstaRoom() {
       },
     });
     setLiveForm((f) => ({ ...f, nome: "" }));
-  }, [liveForm, ref, squadre]);
+  }, [liveForm, ref, squadre, config]);
 
   const annullaAstaLive = useCallback(async () => {
     await updateDoc(ref, {
@@ -622,11 +633,13 @@ export default function AstaRoom() {
       <main className="fk-main">
         {tab === "setup" && (
           <section className="fk-card fk-setup">
-            {asta_iniziata && (
+            {asta_iniziata && !sbloccaImpostazioni && (
               <div className="fk-notice">
                 <ShieldCheck size={16} />
-                L'asta è già iniziata: le impostazioni sono bloccate. Usa "nuova asta" per
-                modificarle.
+                L'asta è già iniziata: le impostazioni sono bloccate per evitare modifiche per sbaglio.{" "}
+                <button className="fk-link-btn" onClick={sblocca} style={{ marginLeft: 4 }}>
+                  Modifica impostazioni
+                </button>
               </div>
             )}
             <h3 className="fk-h3">Elenco giocatori Serie A</h3>
@@ -663,44 +676,73 @@ export default function AstaRoom() {
             </p>
 
             <h3 className="fk-h3">Impostazioni asta</h3>
-            <div className="fk-field-row">
-              <label>
-                Crediti iniziali
-                <input
-                  type="number"
-                  min={1}
-                  disabled={asta_iniziata}
-                  value={configDraft.budget}
-                  onChange={(e) =>
-                    setConfigDraft((c) => ({ ...c, budget: parseInt(e.target.value || "0", 10) || 0 }))
-                  }
-                />
-              </label>
-            </div>
+            {(() => {
+              const bloccato = asta_iniziata && !sbloccaImpostazioni;
+              return (
+                <>
+                  {asta_iniziata && sbloccaImpostazioni && (
+                    <p className="fk-warn" style={{ marginBottom: 10 }}>
+                      Attenzione: cambiare crediti o slot ora non tocca i giocatori già assegnati,
+                      solo i controlli sulle prossime assegnazioni.
+                    </p>
+                  )}
+                  <div className="fk-field-row">
+                    <label>
+                      Crediti iniziali
+                      <input
+                        type="number"
+                        min={1}
+                        disabled={bloccato}
+                        value={configDraft.budget}
+                        onChange={(e) =>
+                          setConfigDraft((c) => ({ ...c, budget: parseInt(e.target.value || "0", 10) || 0 }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      Countdown asta live (secondi)
+                      <input
+                        type="number"
+                        min={5}
+                        max={300}
+                        disabled={bloccato}
+                        value={configDraft.countdownSec}
+                        onChange={(e) =>
+                          setConfigDraft((c) => ({
+                            ...c,
+                            countdownSec: parseInt(e.target.value || "0", 10) || 20,
+                          }))
+                        }
+                      />
+                    </label>
+                  </div>
 
-            <h3 className="fk-h3">Composizione rosa per ruolo</h3>
-            <div className="fk-field-row">
-              {RUOLI.map((r) => (
-                <label key={r.key}>
-                  {r.label}
-                  <input
-                    type="number"
-                    min={0}
-                    disabled={asta_iniziata}
-                    value={configDraft.slot[r.key]}
-                    onChange={(e) =>
-                      setConfigDraft((c) => ({
-                        ...c,
-                        slot: { ...c.slot, [r.key]: parseInt(e.target.value || "0", 10) || 0 },
-                      }))
-                    }
-                  />
-                </label>
-              ))}
-            </div>
-            <p className="fk-hint">
-              Totale giocatori per rosa: {Object.values(configDraft.slot).reduce((a, b) => a + b, 0)}
-            </p>
+                  <h3 className="fk-h3">Composizione rosa per ruolo</h3>
+                  <div className="fk-field-row">
+                    {RUOLI.map((r) => (
+                      <label key={r.key}>
+                        {r.label}
+                        <input
+                          type="number"
+                          min={0}
+                          disabled={bloccato}
+                          value={configDraft.slot[r.key]}
+                          onChange={(e) =>
+                            setConfigDraft((c) => ({
+                              ...c,
+                              slot: { ...c.slot, [r.key]: parseInt(e.target.value || "0", 10) || 0 },
+                            }))
+                          }
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="fk-hint">
+                    Totale giocatori per rosa: {Object.values(configDraft.slot).reduce((a, b) => a + b, 0)}
+                  </p>
+                </>
+              );
+            })()}
 
             <p className="fk-hint">
               Le squadre non si impostano qui: chi entra con il codice va nella scheda "Asta
@@ -711,6 +753,22 @@ export default function AstaRoom() {
               <button className="fk-primary" onClick={iniziaAsta}>
                 Inizia l'asta
               </button>
+            )}
+            {asta_iniziata && sbloccaImpostazioni && (
+              <div className="fk-live-actions">
+                <button className="fk-primary" onClick={salvaImpostazioni}>
+                  Salva modifiche
+                </button>
+                <button
+                  className="fk-secondary"
+                  onClick={() => {
+                    setConfigDraft({ ...defaultConfig(), ...stato.config });
+                    setSbloccaImpostazioni(false);
+                  }}
+                >
+                  Annulla
+                </button>
+              </div>
             )}
           </section>
         )}
@@ -745,9 +803,10 @@ export default function AstaRoom() {
                           <h3 className="fk-h3">Metti all'asta un giocatore</h3>
                           <p className="fk-hint">
                             Chiunque può avviarla: scrivi il giocatore, il ruolo e l'offerta di
-                            partenza, poi tutti rilanciano da qui. Il countdown si resetta a ogni
-                            rilancio: quando scade, il giocatore si assegna da solo a chi è in
-                            testa (o l'asta si annulla se nessuno ha offerto).
+                            partenza, poi tutti rilanciano da qui. Countdown di{" "}
+                            {config.countdownSec || 20}s (si cambia in Impostazioni): si resetta a
+                            ogni rilancio, allo scadere
+                            assegna da solo a chi è in testa (o annulla se nessuno ha offerto).
                           </p>
                           <div className="fk-field-row">
                             <label>
@@ -768,18 +827,6 @@ export default function AstaRoom() {
                                 value={liveForm.offertaBase}
                                 onChange={(e) =>
                                   setLiveForm((f) => ({ ...f, offertaBase: e.target.value }))
-                                }
-                              />
-                            </label>
-                            <label>
-                              Countdown (secondi)
-                              <input
-                                type="number"
-                                min={5}
-                                max={300}
-                                value={liveForm.countdownSec}
-                                onChange={(e) =>
-                                  setLiveForm((f) => ({ ...f, countdownSec: e.target.value }))
                                 }
                               />
                             </label>
@@ -1150,7 +1197,8 @@ export default function AstaRoom() {
             ) : (
               <>
                 <p className="fk-hint">
-                  Giocatori del listone non ancora assegnati a nessuna squadra.
+                  Giocatori del listone non ancora assegnati a nessuna squadra, ordinati per
+                  quotazione (dal più al meno costoso).
                 </p>
                 <div className="fk-field-row" style={{ marginTop: 10 }}>
                   <label>
@@ -1196,8 +1244,9 @@ export default function AstaRoom() {
                           </span>
                           {g.nome}
                         </span>
-                        <span className="fk-hint" style={{ margin: 0 }}>
+                        <span className="fk-hint" style={{ margin: 0, display: "flex", gap: 10, alignItems: "center" }}>
                           {g.squadra}
+                          <strong style={{ color: "#C99A2E" }}>{g.quotazione}</strong>
                         </span>
                       </li>
                     );

@@ -48,6 +48,8 @@ export async function estraiGiocatoriDaFile(file) {
   const idxRuolo = intestazione.indexOf("R");
   const idxNome = intestazione.indexOf("Nome");
   const idxSquadra = intestazione.indexOf("Squadra");
+  const idxQuotazione =
+    intestazione.indexOf("Qt.A") !== -1 ? intestazione.indexOf("Qt.A") : intestazione.indexOf("Qt.I");
 
   const giocatori = [];
   const visti = new Set();
@@ -56,11 +58,12 @@ export async function estraiGiocatoriDaFile(file) {
     const ruolo = String(riga[idxRuolo] || "").trim().toUpperCase();
     const nome = String(riga[idxNome] || "").trim();
     const squadra = String(riga[idxSquadra] || "").trim();
+    const quotazione = idxQuotazione !== -1 ? Number(riga[idxQuotazione]) || 0 : 0;
     if (!nome || !RUOLI_VALIDI.has(ruolo)) continue;
     const chiave = `${nome}|${ruolo}`;
     if (visti.has(chiave)) continue;
     visti.add(chiave);
-    giocatori.push({ nome, ruolo, squadra });
+    giocatori.push({ nome, ruolo, squadra, quotazione });
   }
   if (giocatori.length === 0) {
     throw new Error("Nessun giocatore valido trovato nel file.");

@@ -8,6 +8,7 @@ export const RUOLI = [
 export const defaultConfig = () => ({
   budget: 500,
   slot: { P: 3, D: 8, C: 8, A: 6 },
+  countdownSec: 20,
 });
 
 export function uid() {

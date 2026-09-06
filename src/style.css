@@ -872,6 +872,11 @@ select option { background: var(--surface-solid); color: var(--text); }
   font-weight: 600;
   color: var(--text-dim);
 }
+.fk-role-spesa {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--gold-ink);
+}
 .fk-player-list { list-style: none; margin: 7px 0 0; padding: 0; }
 .fk-player-list li {
   display: flex;

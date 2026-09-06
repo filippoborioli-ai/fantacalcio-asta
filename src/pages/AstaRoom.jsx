@@ -666,6 +666,7 @@ export default function AstaRoom() {
         `${nome} è già in rosa a ${giaAssegnato.squadraNome} (${giaAssegnato.giocatore.crediti} crediti).`
       );
     }
+    const chiamante = (squadre || []).find((s) => s.id === deviceRole);
     await updateDoc(ref, {
       astaLive: {
         id: uid(),
@@ -675,13 +676,15 @@ export default function AstaRoom() {
         offertaCorrente: base,
         squadraOfferenteId: null,
         squadraOfferenteNome: null,
+        chiamataDaId: chiamante?.id || null,
+        chiamataDaNome: chiamante?.nome || null,
         storico: [],
         durataSecondi: durata,
         scadenza: Date.now() + durata * 1000,
       },
     });
     setLiveForm((f) => ({ ...f, nome: "" }));
-  }, [liveForm, ref, squadre, config]);
+  }, [liveForm, ref, squadre, deviceRole, config]);
 
   const annullaAstaLive = useCallback(async () => {
     await updateDoc(ref, {
@@ -692,6 +695,8 @@ export default function AstaRoom() {
         offertaCorrente: 0,
         squadraOfferenteId: null,
         squadraOfferenteNome: null,
+        chiamataDaId: null,
+        chiamataDaNome: null,
         storico: [],
         durataSecondi: 0,
         scadenza: null,
@@ -1376,6 +1381,13 @@ export default function AstaRoom() {
                 >
                   <p className="fk-live-you">
                     Giochi come <strong>{miaSquadra.nome}</strong>
+                    {astaLive.chiamataDaNome && astaLive.chiamataDaId !== miaSquadra.id && (
+                      <>
+                        {" "}
+                        · chiamato da <strong>{astaLive.chiamataDaNome}</strong>
+                      </>
+                    )}
+                    {astaLive.chiamataDaId === miaSquadra.id && " · l'hai chiamato tu"}
                   </p>
 
                   <p className="fk-live-player">
@@ -1701,6 +1713,7 @@ export default function AstaRoom() {
 
                   {RUOLI.map((r) => {
                     const giocatoriRuolo = s.giocatori.filter((g) => g.ruolo === r.key);
+                    const spesaRuolo = giocatoriRuolo.reduce((tot, g) => tot + g.crediti, 0);
                     return (
                       <div className="fk-role-block" key={r.key}>
                         <div className="fk-role-title">
@@ -1708,6 +1721,9 @@ export default function AstaRoom() {
                             {r.key}
                           </span>
                           {r.label} · {giocatoriRuolo.length}/{config.slot[r.key]}
+                          {(mia || visibili) && giocatoriRuolo.length > 0 && (
+                            <span className="fk-role-spesa">{spesaRuolo} cr</span>
+                          )}
                         </div>
                         {giocatoriRuolo.length > 0 && (
                           <ul className="fk-player-list">

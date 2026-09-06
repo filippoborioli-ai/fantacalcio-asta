@@ -127,6 +127,22 @@ export function suona(tipo) {
       note(784, 0.45, 0.18, 0.12);
       note(1046, 0.62, 0.2, 0.12);
       note(1318, 0.8, 0.6, 0.13);
+    } else if (tipo === "slot") {
+      // Rullo della slot: clack che rallentano, come una ruota che si ferma.
+      // Sono programmati tutti insieme in anticipo: WebAudio li fa partire ai
+      // tempi giusti da solo, senza timer JS che sbandano.
+      let t = 0;
+      let passo = 0.055;
+      while (t < 2.35) {
+        note(820 + Math.random() * 240, t, 0.03, 0.045, "square");
+        t += passo;
+        passo *= 1.09; // ogni giro un po' più lento
+      }
+    } else if (tipo === "slotFerma") {
+      // Il colpo secco dell'incastro finale, con il campanello.
+      note(200, 0, 0.1, 0.12, "square");
+      note(1046, 0.06, 0.12, 0.08);
+      note(1568, 0.16, 0.3, 0.08);
     } else if (tipo === "vuoto") {
       // Nessuno lo ha voluto: trombetta triste.
       note(330, 0, 0.16, 0.07, "sawtooth", 300);

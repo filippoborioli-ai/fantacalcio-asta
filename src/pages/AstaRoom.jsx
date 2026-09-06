@@ -17,6 +17,8 @@ import { subscribeListone, salvaListone, estraiGiocatoriDaFile, normalizza } fro
 import GiocatoreInput from "../components/GiocatoreInput.jsx";
 import TemaToggle from "../components/TemaToggle.jsx";
 import AudioToggle from "../components/AudioToggle.jsx";
+import SlotChiamata from "../components/SlotChiamata.jsx";
+import Premiazione from "../components/Premiazione.jsx";
 import { suona } from "../lib/suoni.js";
 import {
   Trash2,
@@ -137,6 +139,8 @@ export default function AstaRoom() {
   const [dispRuolo, setDispRuolo] = useState("TUTTI");
   const [dispQuery, setDispQuery] = useState("");
   const [dispSquadra, setDispSquadra] = useState("TUTTE");
+  const [slotAperta, setSlotAperta] = useState(false);
+  const [premiAperti, setPremiAperti] = useState(false);
   const [pannello, setPannello] = useState("ultimi");
   const [sbloccaImpostazioni, setSbloccaImpostazioni] = useState(false);
   const [toasts, setToasts] = useState([]);
@@ -252,29 +256,37 @@ export default function AstaRoom() {
   const squadre = asta_iniziata ? stato.squadre : null;
   const astaLive = stato?.astaLive || null;
 
-  // A ogni cambio dell'offerta corrente (proprio o altrui) o nuovo giocatore,
-  // il box torna vuoto: si riparte dal default (+1) invece di tenersi in
-  // mano una quota finale che non ha più senso col nuovo numero.
+  // Il box si svuota SOLO quando cambia il giocatore all'asta. Non a ogni
+  // cambio dell'offerta corrente: i rilanci degli altri arrivano mentre stai
+  // digitando la tua quota, e cancellartela sotto le dita è il modo più
+  // sicuro di farti perdere l'asta. Dopo una TUA offerta riuscita il campo
+  // si svuota lo stesso, ma lo fa faiOfferta: lì è una conseguenza voluta.
   useEffect(() => {
     setBidValue("");
-  }, [astaLive?.id, astaLive?.offertaCorrente]);
+  }, [astaLive?.id]);
 
-  // Giocatori del listone non ancora assegnati a nessuna squadra: utile per
-  // vedere in un colpo d'occhio chi manca ancora da mettere all'asta.
-  const giocatoriDisponibili = useMemo(() => {
+  // Chi è ancora libero, senza nessun filtro: la base da cui pescano sia la
+  // scheda Disponibili (che poi filtra), sia il sorteggio, sia il conteggio
+  // per ruolo. Una definizione sola, così le tre cose non possono divergere.
+  const liberiPerSorteggio = useMemo(() => {
     if (!listone.length) return [];
     const assegnati = new Set();
     (squadre || []).forEach((s) =>
       s.giocatori.forEach((g) => assegnati.add(normalizza(g.nome)))
     );
+    return listone.filter((g) => !assegnati.has(normalizza(g.nome)));
+  }, [listone, squadre]);
+
+  // Giocatori del listone non ancora assegnati a nessuna squadra: utile per
+  // vedere in un colpo d'occhio chi manca ancora da mettere all'asta.
+  const giocatoriDisponibili = useMemo(() => {
     const q = normalizza(dispQuery.trim());
-    return listone
+    return liberiPerSorteggio
       .filter((g) => dispRuolo === "TUTTI" || g.ruolo === dispRuolo)
       .filter((g) => dispSquadra === "TUTTE" || g.squadra === dispSquadra)
-      .filter((g) => !assegnati.has(normalizza(g.nome)))
       .filter((g) => !q || normalizza(g.nome).includes(q))
       .sort((a, b) => b.quotazione - a.quotazione || a.nome.localeCompare(b.nome));
-  }, [listone, squadre, dispRuolo, dispSquadra, dispQuery]);
+  }, [liberiPerSorteggio, dispRuolo, dispSquadra, dispQuery]);
 
   // Elenco delle squadre di Serie A presenti nel listone, per il filtro:
   // in ordine alfabetico, senza doppioni.
@@ -288,16 +300,12 @@ export default function AstaRoom() {
   // quando finisce l'ultimo di un reparto.
   const disponibiliPerRuolo = useMemo(() => {
     if (!listone.length) return null;
-    const assegnati = new Set();
-    (squadre || []).forEach((s) => s.giocatori.forEach((g) => assegnati.add(normalizza(g.nome))));
     const conteggi = {};
     RUOLI.forEach((r) => {
-      conteggi[r.key] = listone.filter(
-        (g) => g.ruolo === r.key && !assegnati.has(normalizza(g.nome))
-      ).length;
+      conteggi[r.key] = liberiPerSorteggio.filter((g) => g.ruolo === r.key).length;
     });
     return conteggi;
-  }, [listone, squadre]);
+  }, [listone.length, liberiPerSorteggio]);
 
   // Dati del pannello laterale dell'asta live.
   const ultimiAcquisti = useMemo(
@@ -1271,6 +1279,26 @@ export default function AstaRoom() {
           <span className="fk-effetto-testo">{e.testo}</span>
         </div>
       ))}
+      {premiAperti && (
+        <Premiazione
+          squadre={squadre}
+          storicoAcquisti={stato?.storicoAcquisti}
+          rilanci={stato?.rilanci}
+          budget={config?.budget}
+          onChiudi={() => setPremiAperti(false)}
+        />
+      )}
+      {slotAperta && (
+        <SlotChiamata
+          disponibili={liberiPerSorteggio}
+          onChiudi={() => setSlotAperta(false)}
+          onEstratto={(g) => {
+            setLiveForm((f) => ({ ...f, nome: g.nome, ruolo: g.ruolo }));
+            setSlotAperta(false);
+            setTab("live");
+          }}
+        />
+      )}
       {aggiudicazione && (
         <div
           key={aggiudicazione.id}
@@ -1674,6 +1702,20 @@ export default function AstaRoom() {
                     <button className="fk-primary" onClick={avviaAstaLive}>
                       Avvia asta
                     </button>
+                    {/* Il momento morto tra un giocatore e l'altro è la parte
+                        noiosa della serata: qui si delega alla sorte. */}
+                    <button
+                      className="fk-slot-btn"
+                      onClick={() => setSlotAperta(true)}
+                      disabled={liberiPerSorteggio.length === 0}
+                      title={
+                        liberiPerSorteggio.length === 0
+                          ? "Serve l'elenco Serie A caricato in Impostazioni"
+                          : "Estrai a sorte il prossimo giocatore da chiamare"
+                      }
+                    >
+                      🎰 Chiamata a sorte
+                    </button>
                     <p className="fk-hint">
                       Countdown {config.countdownSec || 20}s, si azzera a ogni rilancio: allo scadere
                       il giocatore va a chi è in testa.
@@ -1971,6 +2013,12 @@ export default function AstaRoom() {
               registrano da soli quando entrano.
             </div>
           </section>
+        )}
+
+        {tab === "squadre" && asta_iniziata && squadre.length > 0 && (
+          <button className="fk-premi-apri" onClick={() => setPremiAperti(true)}>
+            🏆 Gli Oscar dell'asta
+          </button>
         )}
 
         {tab === "squadre" && asta_iniziata && squadre.length > 0 && (

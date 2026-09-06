@@ -101,6 +101,32 @@ export function suona(tipo) {
       note(659, 0.26, 0.14, 0.1);
       note(784, 0.39, 0.16, 0.11);
       note(1046, 0.55, 0.5, 0.11);
+    } else if (tipo === "fischio") {
+      // Fischio d'inizio: acuto e secco, come un arbitro vero.
+      note(1600, 0, 0.28, 0.08, "square");
+      note(1600, 0.34, 0.16, 0.07, "square");
+    } else if (tipo === "duello") {
+      // Cozzo di spade: due colpi metallici che si rincorrono.
+      note(1200, 0, 0.06, 0.08, "square");
+      note(700, 0.08, 0.06, 0.08, "square");
+      note(1200, 0.16, 0.06, 0.08, "square");
+      note(700, 0.24, 0.09, 0.08, "square");
+    } else if (tipo === "vuota") {
+      // Portafoglio a zero: due note tristi e basse, senza scivolata.
+      note(220, 0, 0.14, 0.08);
+      note(165, 0.13, 0.28, 0.08);
+    } else if (tipo === "sportello") {
+      // Ruolo esaurito: uno sportello che sbatte.
+      note(140, 0, 0.09, 0.11, "square");
+      note(90, 0.08, 0.12, 0.09, "square");
+    } else if (tipo === "finale") {
+      // Gran finale: la fanfara più grande di tutte, l'asta è chiusa.
+      note(392, 0, 0.16, 0.11);
+      note(523, 0.15, 0.16, 0.11);
+      note(659, 0.3, 0.16, 0.11);
+      note(784, 0.45, 0.18, 0.12);
+      note(1046, 0.62, 0.2, 0.12);
+      note(1318, 0.8, 0.6, 0.13);
     } else if (tipo === "vuoto") {
       // Nessuno lo ha voluto: trombetta triste.
       note(330, 0, 0.16, 0.07, "sawtooth", 300);

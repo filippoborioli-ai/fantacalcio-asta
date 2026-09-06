@@ -151,6 +151,10 @@ export default function AstaRoom() {
   const prevOffertaRef = useRef(null);
   const prevResiduiRef = useRef(null);
   const prevRoseCompleteRef = useRef(null);
+  const prevNumeroAcquistiRef = useRef(null);
+  const duelloAnnunciatoPerAstaRef = useRef(null);
+  const prevDisponibiliPerRuoloRef = useRef(null);
+  const finaleAnnunciatoRef = useRef(false);
   const prevGiocatoriIdsRef = useRef(null);
   const prevSquadraIdsRef = useRef(null);
   const prevAstaLiveRef = useRef(null);
@@ -164,7 +168,10 @@ export default function AstaRoom() {
   // toccare il layout, quindi non fanno mai comparire scrollbar sul palco.
   const mostraEffetto = useCallback((tipo, emoji, testo, durata = 2600) => {
     const id = uid();
-    setEffetti((e) => [...e.slice(-2), { id, tipo, emoji, testo }]);
+    // Cap a 4: un singolo acquisto può legittimamente far scattare più
+    // effetti insieme (es. finisce il budget E completa la rosa), un tetto
+    // più basso ne perdeva uno per strada senza che nessuno se ne accorgesse.
+    setEffetti((e) => [...e.slice(-3), { id, tipo, emoji, testo }]);
     setTimeout(() => setEffetti((e) => e.filter((x) => x.id !== id)), durata);
   }, []);
 
@@ -266,6 +273,22 @@ export default function AstaRoom() {
       .filter((g) => !q || normalizza(g.nome).includes(q))
       .sort((a, b) => b.quotazione - a.quotazione || a.nome.localeCompare(b.nome));
   }, [listone, squadre, dispRuolo, dispQuery]);
+
+  // Quanti giocatori restano nel listone per ciascun ruolo, indipendente dal
+  // filtro che l'utente ha scelto nella scheda Disponibili: serve a scoprire
+  // quando finisce l'ultimo di un reparto.
+  const disponibiliPerRuolo = useMemo(() => {
+    if (!listone.length) return null;
+    const assegnati = new Set();
+    (squadre || []).forEach((s) => s.giocatori.forEach((g) => assegnati.add(normalizza(g.nome))));
+    const conteggi = {};
+    RUOLI.forEach((r) => {
+      conteggi[r.key] = listone.filter(
+        (g) => g.ruolo === r.key && !assegnati.has(normalizza(g.nome))
+      ).length;
+    });
+    return conteggi;
+  }, [listone, squadre]);
 
   // Dati del pannello laterale dell'asta live.
   const ultimiAcquisti = useMemo(
@@ -453,7 +476,9 @@ export default function AstaRoom() {
   }, [astaLive?.attiva, astaLive?.offertaCorrente, astaLive?.storico, astaLive?.giocatore, astaLive?.offertaIniziale, mostraEffetto]);
 
   // 🦖 Crediti agli sgoccioli: una squadra scende sotto il 10% del budget.
+  // 💸 Portafoglio vuoto: una squadra finisce esattamente a 0.
   // 🏁 Rosa completa: una squadra ha riempito tutti i posti.
+  // 🎆 Gran finale: TUTTE le squadre hanno riempito la rosa, l'asta è chiusa.
   useEffect(() => {
     if (!squadre || !config?.budget) return;
     const slotTotali = Object.values(config.slot || {}).reduce((a, b) => a + b, 0);
@@ -471,7 +496,10 @@ export default function AstaRoom() {
       squadre.forEach((s) => {
         const prima = residuiPrima[s.id];
         const ora = residuiAttuali[s.id];
-        if (prima !== undefined && prima >= soglia && ora < soglia) {
+        if (prima !== undefined && ora === 0 && prima > 0) {
+          mostraEffetto("vuota", "💸", `${s.nome} ha finito i crediti!`, 2600);
+          suona("vuota");
+        } else if (prima !== undefined && prima >= soglia && ora < soglia) {
           mostraEffetto("dino", "🦖", `${s.nome} è quasi a secco: ${ora} crediti`, 3000);
           suona("dino");
         }
@@ -482,9 +510,78 @@ export default function AstaRoom() {
         }
       });
     }
+
+    // Il gran finale scatta una volta sola, quando l'ULTIMA squadra completa
+    // la rosa: prima di allora almeno una squadra manca ancora, non ha senso.
+    // Se poi si aggiunge una nuova squadra ancora vuota (capita, la
+    // registrazione resta aperta), si riarma: avrà senso festeggiare di
+    // nuovo quando anche lei avrà finito.
+    // Almeno due squadre: una lega di uno non è ancora una lega, e senza
+    // questo controllo il primo che completa la propria rosa da solo si
+    // sentiva annunciare "asta conclusa" prima che gli altri fossero entrati.
+    const tutteComplete =
+      squadre.length >= 2 && slotTotali > 0 && squadre.every((s) => complete[s.id]);
+    if (tutteComplete && !finaleAnnunciatoRef.current) {
+      finaleAnnunciatoRef.current = true;
+      mostraEffetto("finale", "🎆", "Asta conclusa: tutte le rose sono al completo!", 3600);
+      suona("finale");
+      spara(true);
+      setTimeout(() => spara(true), 500);
+    } else if (!tutteComplete) {
+      finaleAnnunciatoRef.current = false;
+    }
+
     prevResiduiRef.current = residuiAttuali;
     prevRoseCompleteRef.current = complete;
   }, [squadre, config?.budget, config?.slot, mostraEffetto]);
+
+  // 📯 Fischio d'inizio: il primissimo acquisto di tutta l'asta, quello che
+  // rompe il ghiaccio prima che tutti abbiano preso confidenza.
+  useEffect(() => {
+    const numero = (stato?.storicoAcquisti || []).length;
+    if (prevNumeroAcquistiRef.current === 0 && numero === 1) {
+      mostraEffetto("fischio", "📯", "Si comincia!", 2000);
+      suona("fischio");
+    }
+    prevNumeroAcquistiRef.current = numero;
+  }, [stato?.storicoAcquisti, mostraEffetto]);
+
+  // 🥊 Duello: due squadre, e solo loro, si rilanciano il giocatore a turno
+  // almeno tre volte di fila. Non conta se si intromette una terza squadra:
+  // quello è mercato normale, non un testa a testa.
+  useEffect(() => {
+    const storico = astaLive?.storico || [];
+    // Il confronto con l'id dell'asta corrente basta da solo a far ripartire
+    // il conteggio su un giocatore nuovo: un id diverso non può mai
+    // combaciare con quello salvato dal duello precedente.
+    if (!astaLive?.id || storico.length < 6) return;
+    const ultimeSei = storico.slice(-6);
+    const nomi = [...new Set(ultimeSei.map((o) => o.squadraNome))];
+    const alternato = ultimeSei.every((o, i) => i === 0 || o.squadraNome !== ultimeSei[i - 1].squadraNome);
+    if (nomi.length === 2 && alternato && duelloAnnunciatoPerAstaRef.current !== astaLive.id) {
+      duelloAnnunciatoPerAstaRef.current = astaLive.id;
+      mostraEffetto("duello", "🥊", `${nomi[0]} vs ${nomi[1]}: che duello per ${astaLive.giocatore}!`, 2800);
+      suona("duello");
+    }
+  }, [astaLive?.storico, astaLive?.id, astaLive?.giocatore, mostraEffetto]);
+
+  // 🚪 Ultimo del ruolo: il listone resta senza portieri (o difensori, o...).
+  // Chi non l'ha ancora preso da qui in poi deve arrangiarsi con chi non è
+  // nel listone: è un cambio di fase dell'asta, vale la pena segnalarlo.
+  useEffect(() => {
+    if (!disponibiliPerRuolo) return;
+    const prima = prevDisponibiliPerRuoloRef.current;
+    if (prima) {
+      for (const r of RUOLI) {
+        if (prima[r.key] === 1 && disponibiliPerRuolo[r.key] === 0) {
+          mostraEffetto("sportello", "🚪", `Finiti i ${r.label.toLowerCase()} nel listone!`, 2800);
+          suona("sportello");
+          break;
+        }
+      }
+    }
+    prevDisponibiliPerRuoloRef.current = disponibiliPerRuolo;
+  }, [disponibiliPerRuolo, mostraEffetto]);
 
   // Lancio oggetti in stile "tavolo da poker": una squadra ne prende in giro
   // un'altra (o la applaude) lanciandole un'emoji. Un solo campo condiviso

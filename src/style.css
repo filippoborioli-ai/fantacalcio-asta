@@ -1940,3 +1940,87 @@ select option { background: var(--surface-solid); color: var(--text); }
     animation: fk-affare-appare 2.2s ease-out forwards !important;
   }
 }
+
+/* 📯 fischio d'inizio: entra dritto al centro, un solo scatto secco */
+@keyframes fk-fischio-entra {
+  0% { top: 40%; left: 50%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+  35% { transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; }
+  100% { top: 40%; left: 50%; opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+.fk-effetto-fischio .fk-effetto-emoji {
+  top: 40%;
+  left: 50%;
+  animation: fk-fischio-entra 2s ease-out forwards;
+  filter: drop-shadow(0 0 26px rgba(255, 255, 255, 0.7));
+}
+.fk-effetto-fischio .fk-effetto-testo { background: rgba(30, 60, 40, 0.92); animation-duration: 2s; }
+
+/* 🥊 duello: due pugni che si scontrano al centro, tremano all'impatto */
+@keyframes fk-duello-scontro {
+  0% { top: 42%; left: 50%; opacity: 0; transform: translate(-50%, -50%) scale(1.8); }
+  30% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  35%, 45%, 55%, 65% { transform: translate(-52%, -50%) scale(1.06); }
+  40%, 50%, 60%, 70% { transform: translate(-48%, -50%) scale(1.06); }
+  85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { top: 42%; left: 50%; opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}
+.fk-effetto-duello .fk-effetto-emoji {
+  top: 42%;
+  left: 50%;
+  animation: fk-duello-scontro 2.8s ease-out forwards;
+}
+.fk-effetto-duello .fk-effetto-testo { background: rgba(92, 33, 33, 0.92); animation-duration: 2.8s; }
+
+/* 💸 portafoglio vuoto: affonda lentamente e si affloscia */
+@keyframes fk-vuota-affonda {
+  0% { top: 40%; left: 50%; opacity: 0; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.05) rotate(-4deg); }
+  75% { opacity: 1; transform: translate(-50%, -40%) scale(0.92) rotate(6deg); }
+  100% { top: 40%; opacity: 0; transform: translate(-50%, -30%) scale(0.8) rotate(6deg); }
+}
+.fk-effetto-vuota .fk-effetto-emoji {
+  top: 40%;
+  left: 50%;
+  animation: fk-vuota-affonda 2.6s ease-in forwards;
+}
+.fk-effetto-vuota .fk-effetto-testo { background: rgba(60, 46, 20, 0.92); animation-duration: 2.6s; }
+
+/* 🚪 ultimo del ruolo: sbatte e si ferma, secco come uno sportello */
+@keyframes fk-sportello-sbatte {
+  0% { top: 40%; left: 50%; opacity: 0; transform: translate(-50%, -50%) scale(0.6) rotate(-30deg); }
+  40% { opacity: 1; transform: translate(-50%, -50%) scale(1.1) rotate(4deg); }
+  50% { transform: translate(-50%, -50%) scale(1) rotate(-2deg); }
+  82% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+  100% { top: 40%; left: 50%; opacity: 0; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+}
+.fk-effetto-sportello .fk-effetto-emoji {
+  top: 40%;
+  left: 50%;
+  animation: fk-sportello-sbatte 2.8s ease-out forwards;
+}
+.fk-effetto-sportello .fk-effetto-testo { background: rgba(46, 38, 20, 0.92); animation-duration: 2.8s; }
+
+/* 🎆 gran finale: il più grande di tutti, cresce e resta più a lungo */
+@keyframes fk-finale-esplode {
+  0% { top: 38%; left: 50%; opacity: 0; transform: translate(-50%, -50%) scale(0.2) rotate(-20deg); }
+  30% { opacity: 1; transform: translate(-50%, -50%) scale(1.25) rotate(4deg); }
+  45% { transform: translate(-50%, -50%) scale(1.05) rotate(-2deg); }
+  60%, 80% { transform: translate(-50%, -50%) scale(1.15) rotate(0deg); }
+  90% { opacity: 1; }
+  100% { top: 38%; left: 50%; opacity: 0; transform: translate(-50%, -50%) scale(1.3) rotate(0deg); }
+}
+.fk-effetto-finale .fk-effetto-emoji {
+  top: 38%;
+  left: 50%;
+  font-size: clamp(72px, 15vh, 140px);
+  animation: fk-finale-esplode 3.6s ease-out forwards;
+  filter: drop-shadow(0 0 44px rgba(255, 201, 77, 0.9));
+}
+.fk-effetto-finale .fk-effetto-testo {
+  background: rgba(60, 44, 16, 0.95);
+  border: 1px solid rgba(255, 201, 77, 0.5);
+  font-size: clamp(14px, 2.2vh, 19px);
+  animation-duration: 3.6s;
+}

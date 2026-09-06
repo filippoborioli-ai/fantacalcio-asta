@@ -157,6 +157,7 @@ export default function AstaRoom() {
   const [dispRuolo, setDispRuolo] = useState("TUTTI");
   const [dispQuery, setDispQuery] = useState("");
   const [pannello, setPannello] = useState("ultimi");
+  const [statNascoste, setStatNascoste] = useState(false);
   const [sbloccaImpostazioni, setSbloccaImpostazioni] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [inRush, setInRush] = useState(false);
@@ -1145,7 +1146,11 @@ export default function AstaRoom() {
               const postiLiberiMia = postiLiberiTotali(miaSquadra, config.slot);
               const maxOffertaMia = residui - Math.max(0, postiLiberiMia - 1);
 
-              const statistiche = (
+              const statistiche = statNascoste ? (
+                <button className="fk-stat-toggle" onClick={() => setStatNascoste(false)}>
+                  👁️ Mostra i miei numeri
+                </button>
+              ) : (
                 <div className="fk-stats-row">
                   <div className="fk-stat">
                     <div className="fk-stat-num" style={{ color: "var(--gold)" }}>{residui}</div>
@@ -1161,6 +1166,13 @@ export default function AstaRoom() {
                     </div>
                     <div className="fk-stat-lab">offerta max</div>
                   </div>
+                  <button
+                    className="fk-stat-toggle fk-stat-toggle-corner"
+                    title="Nascondi questi numeri"
+                    onClick={() => setStatNascoste(true)}
+                  >
+                    <Lock size={12} /> nascondi
+                  </button>
                 </div>
               );
 
@@ -1246,7 +1258,7 @@ export default function AstaRoom() {
               const durata = astaLive.durataSecondi || config.countdownSec || 20;
               const frazione =
                 secondiRimanenti === null ? 1 : Math.max(0, Math.min(1, secondiRimanenti / durata));
-              const circonferenza = 2 * Math.PI * 30;
+              const circonferenza = 2 * Math.PI * 88;
               const urgente = secondiRimanenti !== null && secondiRimanenti <= 5;
 
               return (
@@ -1278,31 +1290,24 @@ export default function AstaRoom() {
                     </p>
                   )}
 
-                  <div className="fk-bid-row">
-                    <div className="fk-ring">
-                      <svg width="68" height="68" viewBox="0 0 68 68">
-                        <circle className="fk-ring-track" cx="34" cy="34" r="30" fill="none" strokeWidth="5" />
-                        <circle
-                          className="fk-ring-bar"
-                          cx="34"
-                          cy="34"
-                          r="30"
-                          fill="none"
-                          strokeWidth="5"
-                          strokeLinecap="round"
-                          stroke={urgente ? "var(--red)" : "var(--accent)"}
-                          strokeDasharray={circonferenza}
-                          strokeDashoffset={circonferenza * (1 - frazione)}
-                        />
-                      </svg>
-                      <div
-                        className={urgente ? "fk-ring-num fk-countdown-urgent" : "fk-ring-num"}
-                        style={{ color: urgente ? "var(--red)" : "var(--text)" }}
-                      >
-                        {secondiRimanenti ?? durata}
-                      </div>
-                    </div>
-                    <div>
+                  <div className="fk-bighero">
+                    <svg className="fk-bighero-svg" viewBox="0 0 200 200">
+                      <circle className="fk-ring-track" cx="100" cy="100" r="88" fill="none" strokeWidth="10" />
+                      <circle
+                        className="fk-ring-bar"
+                        cx="100"
+                        cy="100"
+                        r="88"
+                        fill="none"
+                        strokeWidth="10"
+                        strokeLinecap="round"
+                        stroke={urgente ? "var(--red)" : "var(--accent)"}
+                        strokeDasharray={circonferenza}
+                        strokeDashoffset={circonferenza * (1 - frazione)}
+                        transform="rotate(-90 100 100)"
+                      />
+                    </svg>
+                    <div className="fk-bighero-center">
                       <p
                         className={inRush ? "fk-bid-value fk-bid-rush" : "fk-bid-value"}
                         key={astaLive.offertaCorrente}
@@ -1310,6 +1315,9 @@ export default function AstaRoom() {
                         {astaLive.offertaCorrente}
                       </p>
                       <p className="fk-bid-unit">crediti</p>
+                      <p className={urgente ? "fk-hero-timer fk-countdown-urgent" : "fk-hero-timer"}>
+                        {secondiRimanenti ?? durata}s
+                      </p>
                     </div>
                   </div>
 
@@ -1524,6 +1532,8 @@ export default function AstaRoom() {
               const totaleSlot = Object.values(config.slot).reduce((a, b) => a + b, 0);
               const totaleOccupati = s.giocatori.length;
               const mia = s.id === deviceRole;
+              const postiLiberiS = postiLiberiTotali(s, config.slot);
+              const maxOffertaS = residui - Math.max(0, postiLiberiS - 1);
               return (
                 <div
                   className={mia ? "fk-card fk-team-card fk-team-mine" : "fk-card fk-team-card"}

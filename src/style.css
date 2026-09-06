@@ -1235,12 +1235,12 @@ select option { background: var(--surface-solid); color: var(--text); }
 
 /* la scheda live occupa l'altezza rimasta: niente scroll di pagina per offrire */
 .fk-main-live {
-  height: calc(100dvh - 118px);
+  height: 100%;
   overflow: hidden;
 }
 .fk-live-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) min(320px, 30%);
   gap: 14px;
   height: 100%;
   align-items: stretch;
@@ -1251,33 +1251,67 @@ select option { background: var(--surface-solid); color: var(--text); }
   overflow-y: auto;
 }
 
-/* palco compatto */
-.fk-live-grid .fk-live-you { margin-bottom: 8px; }
-.fk-live-grid .fk-live-player { font-size: clamp(19px, 3.2vw, 27px); margin: 2px 0; }
-.fk-live-grid .fk-live-club { margin-bottom: 8px; }
-.fk-bid-row {
+/* palco: ora è il vero protagonista, usa tutto lo spazio che ha */
+.fk-stage {
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+  padding: clamp(14px, 3vh, 32px) clamp(16px, 4vw, 40px);
+}
+.fk-stage > * { width: 100%; max-width: 480px; }
+.fk-live-grid .fk-live-you { margin-bottom: clamp(6px, 1.5vh, 14px); font-size: 13px; }
+.fk-live-grid .fk-live-player { font-size: clamp(22px, 4vh, 34px); margin: 2px 0; justify-content: center; }
+.fk-live-grid .fk-live-club { margin-bottom: 2px; font-size: 12.5px; }
+
+/* il grande anello-countdown col valore dentro: il vero centro della scena */
+.fk-bighero {
+  position: relative;
+  width: clamp(160px, 40vh, 340px);
+  height: clamp(160px, 40vh, 340px);
+  margin: clamp(8px, 2vh, 20px) auto;
+  flex-shrink: 0;
+}
+.fk-bighero-svg { width: 100%; height: 100%; display: block; }
+.fk-bighero-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 18px;
-  margin: 6px 0 4px;
 }
-.fk-live-grid .fk-bid-value {
-  font-size: clamp(42px, 7vw, 62px);
+.fk-bighero .fk-bid-value {
+  font-size: clamp(38px, 11vh, 88px);
+  line-height: 1;
   margin: 0;
 }
-.fk-live-grid .fk-bid-unit { margin: 0; }
-.fk-live-grid .fk-ring { width: 68px; height: 68px; }
-.fk-live-grid .fk-ring-num { font-size: 21px; }
-.fk-live-grid .fk-leader { margin-top: 8px; padding: 6px 13px; font-size: 12.5px; }
-.fk-live-grid .fk-live-actions { margin-top: 12px; }
-.fk-live-grid .fk-bid-btn { font-size: 16px; padding: 13px 30px; }
-.fk-live-grid .fk-custom-bid { margin-top: 10px; }
-.fk-live-grid .fk-stats-row { margin-top: 12px; }
-.fk-live-grid .fk-stat { padding: 7px 10px; }
-.fk-live-grid .fk-stat-num { font-size: 17px; }
-.fk-chiudi-row { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.fk-bighero .fk-bid-unit {
+  margin: 2px 0 0;
+  font-size: clamp(10px, 1.6vh, 13px);
+}
+.fk-hero-timer {
+  margin: clamp(4px, 1.2vh, 10px) 0 0;
+  font-size: clamp(12px, 2vh, 16px);
+  font-weight: 700;
+  color: var(--text-dim);
+}
+.fk-hero-timer.fk-countdown-urgent { color: var(--red) !important; }
+
+.fk-live-grid .fk-leader { margin: 0 0 clamp(6px, 1.5vh, 14px); padding: 6px 15px; font-size: 13px; }
+.fk-live-grid .fk-live-actions { margin-top: clamp(6px, 1.5vh, 14px); }
+.fk-live-grid .fk-bid-btn { font-size: clamp(15px, 2.2vh, 19px); padding: clamp(11px, 2vh, 17px) clamp(24px, 5vw, 40px); }
+.fk-live-grid .fk-custom-bid { margin-top: clamp(6px, 1.3vh, 12px); }
+.fk-live-grid .fk-stats-row { margin-top: clamp(8px, 1.8vh, 16px); }
+.fk-live-grid .fk-stat { padding: clamp(5px, 1vh, 10px) 10px; }
+.fk-live-grid .fk-stat-num { font-size: clamp(15px, 2.2vh, 19px); }
+.fk-chiudi-row { margin-top: clamp(8px, 1.8vh, 16px); padding-top: clamp(8px, 1.8vh, 16px); border-top: 1px dashed var(--line); }
 .fk-chiudi-row .fk-secondary { font-size: 12px; padding: 8px 12px; }
+
+/* stato "chiama il prossimo giocatore": stessa logica, campi un filo più grandi */
+.fk-stage .fk-field-row { max-width: 520px; }
+.fk-stage input { font-size: 15px; padding: 11px 13px; }
 
 /* pannello cronaca */
 .fk-panel {
@@ -1351,17 +1385,10 @@ select option { background: var(--surface-solid); color: var(--text); }
   flex-shrink: 0;
 }
 
-@media (max-width: 900px) {
-  /* su schermo stretto il pannello va sotto e la pagina torna a scorrere */
-  .fk-main-live { height: auto; overflow: visible; }
-  .fk-live-grid { grid-template-columns: 1fr; height: auto; }
-  .fk-live-grid > .fk-stage, .fk-live-grid > .fk-card { overflow: visible; }
-  .fk-panel { max-height: 320px; overflow: hidden !important; }
-}
-
-/* durante l'asta live la pagina non scorre mai: guscio a tutta altezza e
-   contenuto che si adatta allo spazio rimasto (niente calcoli a occhio
-   sull'altezza dell'header) */
+/* durante l'asta live la pagina non scorre mai (anche da telefono): guscio a
+   tutta altezza, il palco prende lo spazio verticale che serve e l'anello si
+   ridimensiona da solo (clamp legato a vh), il pannello resta una fascia
+   compatta sotto invece di allungare la pagina. */
 .fk-root-live {
   height: 100dvh;
   display: flex;
@@ -1373,13 +1400,47 @@ select option { background: var(--surface-solid); color: var(--text); }
   flex: 1;
   min-height: 0;
   height: auto;
-  margin: 14px auto;
+  margin: 12px auto;
 }
+
 @media (max-width: 900px) {
-  .fk-root-live { height: auto; overflow: visible; padding-bottom: 40px; }
-  .fk-root-live .fk-main-live { flex: none; }
+  .fk-live-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(110px, 28vh);
+    gap: 10px;
+  }
+  .fk-panel { padding: 10px 12px 8px; }
+  .fk-panel-tab { font-size: 10.5px; padding: 6px 4px; }
+  .fk-bighero { width: clamp(120px, 32vh, 220px); height: clamp(120px, 32vh, 220px); margin: clamp(4px, 1.2vh, 12px) auto; }
+  .fk-stage { padding: 10px 14px; }
 }
 
 /* nella colonna del palco i 4 ruoli devono stare su una riga sola */
 .fk-live-grid .fk-choice-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .fk-live-grid .fk-choice { padding: 9px 4px; font-size: 12px; }
+
+/* pulsante mostra/nascondi i propri numeri sul palco */
+.fk-stats-row { position: relative; }
+.fk-stat-toggle {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.fk-stat-toggle:hover { color: var(--text); border-color: var(--line-strong); background: var(--surface-2); }
+.fk-stat-toggle-corner {
+  position: absolute;
+  top: -22px;
+  right: 0;
+  padding: 3px 9px;
+  font-size: 10px;
+}

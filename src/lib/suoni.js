@@ -76,6 +76,31 @@ export function suona(tipo) {
       // Colpo di martelletto: tonfo grave con lo schiocco sopra.
       note(160, 0, 0.18, 0.13, "sine", 60);
       note(2200, 0, 0.04, 0.05, "square");
+    } else if (tipo === "razzo") {
+      // Decollo: sirena che sale, l'asta è partita per la stratosfera.
+      note(220, 0, 0.7, 0.08, "sawtooth", 1400);
+      note(330, 0.05, 0.65, 0.05, "square", 1800);
+    } else if (tipo === "scippo") {
+      // Fulmine: rilancio all'ultimo respiro, secco e cattivo.
+      note(1800, 0, 0.12, 0.09, "square", 400);
+      note(900, 0.1, 0.2, 0.08, "sawtooth", 160);
+    } else if (tipo === "dino") {
+      // Ruggito: crediti agli sgoccioli.
+      note(90, 0, 0.55, 0.13, "sawtooth", 55);
+      note(140, 0.08, 0.42, 0.08, "square", 70);
+    } else if (tipo === "affare") {
+      // Scintillio: preso per due lire.
+      note(1046, 0, 0.08, 0.07);
+      note(1318, 0.07, 0.08, 0.07);
+      note(1568, 0.14, 0.08, 0.07);
+      note(2093, 0.21, 0.2, 0.06);
+    } else if (tipo === "completa") {
+      // Rosa completa: trombe, hai finito la serata.
+      note(392, 0, 0.14, 0.1);
+      note(523, 0.13, 0.14, 0.1);
+      note(659, 0.26, 0.14, 0.1);
+      note(784, 0.39, 0.16, 0.11);
+      note(1046, 0.55, 0.5, 0.11);
     } else if (tipo === "vuoto") {
       // Nessuno lo ha voluto: trombetta triste.
       note(330, 0, 0.16, 0.07, "sawtooth", 300);

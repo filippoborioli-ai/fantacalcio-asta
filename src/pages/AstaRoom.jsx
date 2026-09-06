@@ -144,6 +144,13 @@ export default function AstaRoom() {
   const [lanci, setLanci] = useState([]);
   const [colpito, setColpito] = useState(false);
   const [aggiudicazione, setAggiudicazione] = useState(null);
+  // Effetti speciali: rari di proposito. Uno che parte a ogni assegnazione
+  // stufa dopo venti giocatori; uno che parte due volte a serata diventa un
+  // ricordo. Ognuno è agganciato a un momento che l'asta ha davvero.
+  const [effetti, setEffetti] = useState([]);
+  const prevOffertaRef = useRef(null);
+  const prevResiduiRef = useRef(null);
+  const prevRoseCompleteRef = useRef(null);
   const prevGiocatoriIdsRef = useRef(null);
   const prevSquadraIdsRef = useRef(null);
   const prevAstaLiveRef = useRef(null);
@@ -151,6 +158,15 @@ export default function AstaRoom() {
   const lancioInizializzatoRef = useRef(false);
   const tabInitRef = useRef(false);
   const inRushRef = useRef(false);
+
+  // Mostra un effetto speciale a schermo (razzo, meteora, dinosauro...) e lo
+  // toglie da solo. Più effetti possono convivere: si sovrappongono senza
+  // toccare il layout, quindi non fanno mai comparire scrollbar sul palco.
+  const mostraEffetto = useCallback((tipo, emoji, testo, durata = 2600) => {
+    const id = uid();
+    setEffetti((e) => [...e.slice(-2), { id, tipo, emoji, testo }]);
+    setTimeout(() => setEffetti((e) => e.filter((x) => x.id !== id)), durata);
+  }, []);
 
   const aggiungiToast = useCallback((toast) => {
     const id = uid();
@@ -285,6 +301,7 @@ export default function AstaRoom() {
       for (const s of squadre) {
         const nuovo = s.giocatori.find((g) => !idsPrima.has(g.id));
         if (nuovo) {
+          const inListone = listone.find((g) => normalizza(g.nome) === normalizza(nuovo.nome));
           // Quanto è grossa la festa lo decide il prezzo pagato, non la
           // quotazione di listino: in asta conta quello che hai speso. La
           // soglia è in proporzione al budget, così vale con qualunque
@@ -322,12 +339,26 @@ export default function AstaRoom() {
             mia: s.id === deviceRole,
           });
           setTimeout(() => setAggiudicazione(null), 2200);
+          // 💎 Affare: pezzo grosso del listone portato via per due lire.
+          // Parte dopo che il timbro è svanito: sovrapposti si coprivano a
+          // vicenda e non si leggeva più né l'uno né l'altro.
+          if (inListone && inListone.quotazione >= 15 && nuovo.crediti <= inListone.quotazione * 0.3) {
+            setTimeout(() => {
+              mostraEffetto(
+                "affare",
+                "💎",
+                `Affarone: ${nuovo.nome} (quotazione ${inListone.quotazione}) per ${nuovo.crediti}!`,
+                3000
+              );
+              suona("affare");
+            }, 2400);
+          }
           break;
         }
       }
     }
     prevGiocatoriIdsRef.current = idsAttuali;
-  }, [squadre, listone, config?.budget, stato?.storicoAcquisti, aggiungiToast]);
+  }, [squadre, listone, config?.budget, stato?.storicoAcquisti, aggiungiToast, mostraEffetto]);
 
   // Nuova squadra iscritta: piccolo benvenuto per tutti, così si sente che
   // la lega si sta riempiendo.
@@ -393,6 +424,67 @@ export default function AstaRoom() {
     }
     prevAstaLiveRef.current = astaLive;
   }, [astaLive, deviceRole, aggiungiToast]);
+
+  // 🚀 L'asta decolla: il prezzo ha superato il triplo di dov'era partito.
+  // ☄️ Scippo: rilancio arrivato negli ultimi 3 secondi che ribalta la testa.
+  // Entrambi si accorgono da soli guardando lo storico delle offerte, quindi
+  // partono su tutti i dispositivi insieme.
+  useEffect(() => {
+    if (!astaLive?.attiva) {
+      prevOffertaRef.current = null;
+      return;
+    }
+    const precedente = prevOffertaRef.current;
+    const attuale = astaLive.offertaCorrente;
+    if (precedente !== null && attuale > precedente) {
+      const partenza = astaLive.offertaIniziale || 1;
+      const sogliaRazzo = Math.max(partenza * 3, partenza + 10);
+      if (precedente < sogliaRazzo && attuale >= sogliaRazzo) {
+        mostraEffetto("razzo", "🚀", `${astaLive.giocatore} è decollato!`, 2400);
+        suona("razzo");
+      }
+      const ultimo = (astaLive.storico || [])[astaLive.storico.length - 1];
+      if (ultimo && ultimo.restavano !== null && ultimo.restavano !== undefined && ultimo.restavano <= 3000) {
+        mostraEffetto("scippo", "☄️", `Scippo di ${ultimo.squadraNome} all'ultimo secondo!`, 2400);
+        suona("scippo");
+      }
+    }
+    prevOffertaRef.current = attuale;
+  }, [astaLive?.attiva, astaLive?.offertaCorrente, astaLive?.storico, astaLive?.giocatore, astaLive?.offertaIniziale, mostraEffetto]);
+
+  // 🦖 Crediti agli sgoccioli: una squadra scende sotto il 10% del budget.
+  // 🏁 Rosa completa: una squadra ha riempito tutti i posti.
+  useEffect(() => {
+    if (!squadre || !config?.budget) return;
+    const slotTotali = Object.values(config.slot || {}).reduce((a, b) => a + b, 0);
+    const residuiAttuali = {};
+    const complete = {};
+    squadre.forEach((s) => {
+      residuiAttuali[s.id] = creditiResidui(s, config.budget);
+      complete[s.id] = slotTotali > 0 && s.giocatori.length >= slotTotali;
+    });
+
+    const residuiPrima = prevResiduiRef.current;
+    const completePrima = prevRoseCompleteRef.current;
+    if (residuiPrima && completePrima) {
+      const soglia = config.budget * 0.1;
+      squadre.forEach((s) => {
+        const prima = residuiPrima[s.id];
+        const ora = residuiAttuali[s.id];
+        if (prima !== undefined && prima >= soglia && ora < soglia) {
+          mostraEffetto("dino", "🦖", `${s.nome} è quasi a secco: ${ora} crediti`, 3000);
+          suona("dino");
+        }
+        if (!completePrima[s.id] && complete[s.id]) {
+          mostraEffetto("completa", "🏁", `${s.nome} ha completato la rosa!`, 3000);
+          suona("completa");
+          spara(true);
+        }
+      });
+    }
+    prevResiduiRef.current = residuiAttuali;
+    prevRoseCompleteRef.current = complete;
+  }, [squadre, config?.budget, config?.slot, mostraEffetto]);
 
   // Lancio oggetti in stile "tavolo da poker": una squadra ne prende in giro
   // un'altra (o la applaude) lanciandole un'emoji. Un solo campo condiviso
@@ -677,6 +769,9 @@ export default function AstaRoom() {
         giocatore: nome,
         ruolo: liveForm.ruolo,
         offertaCorrente: base,
+        // Prezzo di partenza congelato: serve a capire quanto è salita l'asta
+        // rispetto a dov'era cominciata (è da lì che parte il razzo).
+        offertaIniziale: base,
         squadraOfferenteId: chiamante?.id || null,
         squadraOfferenteNome: chiamante?.nome || null,
         chiamataDaId: chiamante?.id || null,
@@ -839,7 +934,14 @@ export default function AstaRoom() {
             scadenza: Date.now() + (live.durataSecondi || 20) * 1000,
             storico: [
               ...(live.storico || []),
-              { squadraNome: squadra.nome, valore, ts: Date.now() },
+              {
+                squadraNome: squadra.nome,
+                valore,
+                ts: Date.now(),
+                // Quanto mancava alla scadenza: sotto i 3 secondi è uno scippo
+                // in extremis, e merita di essere segnalato a tutto il tavolo.
+                restavano: live.scadenza ? Math.max(0, live.scadenza - Date.now()) : null,
+              },
             ].slice(-20),
           };
           // Contatore rilanci per squadra: alimenta la classifica "più
@@ -1040,6 +1142,12 @@ export default function AstaRoom() {
               ? `Hai colpito ${l.aNome}!`
               : `${l.daNome} → ${l.aNome}`}
           </span>
+        </div>
+      ))}
+      {effetti.map((e) => (
+        <div key={e.id} className={`fk-effetto fk-effetto-${e.tipo}`}>
+          <span className="fk-effetto-emoji">{e.emoji}</span>
+          <span className="fk-effetto-testo">{e.testo}</span>
         </div>
       ))}
       {aggiudicazione && (

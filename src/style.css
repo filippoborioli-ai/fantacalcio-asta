@@ -1800,3 +1800,143 @@ select option { background: var(--surface-solid); color: var(--text); }
 @media (prefers-reduced-motion: reduce) {
   .fk-timbro { animation: fk-timbro-out 0.4s ease-in 1.8s forwards; }
 }
+
+/* =========================================================
+   EFFETTI SPECIALI
+   Rari di proposito: uno che parte a ogni assegnazione stufa dopo venti
+   giocatori, uno che parte due volte a serata diventa un ricordo.
+   Il disegno vola, la scritta resta ferma: se volassero insieme, alla
+   velocità del razzo la scritta non si leggerebbe. Tutto fisso sopra la
+   pagina e pointer-events:none, quindi non ruba click né tocca il layout.
+   ========================================================= */
+.fk-effetto {
+  position: fixed;
+  inset: 0;
+  z-index: 96;
+  pointer-events: none;
+}
+.fk-effetto-emoji {
+  position: absolute;
+  font-size: clamp(56px, 12vh, 110px);
+  line-height: 1;
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.45));
+}
+.fk-effetto-testo {
+  position: absolute;
+  left: 50%;
+  bottom: 12vh;
+  transform: translateX(-50%);
+  font-weight: 800;
+  font-size: clamp(13px, 1.9vh, 17px);
+  color: #FBF4F7;
+  background: rgba(20, 14, 26, 0.85);
+  border-radius: 99px;
+  padding: 7px 18px;
+  white-space: nowrap;
+  max-width: 92vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: fk-effetto-didascalia 2.4s ease-out forwards;
+}
+@keyframes fk-effetto-didascalia {
+  0% { opacity: 0; transform: translate(-50%, 14px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* 🚀 decollo: parte dal basso e se ne va in alto, lasciando la scia */
+@keyframes fk-razzo-vola {
+  0% { bottom: -16vh; left: 16vw; opacity: 0; }
+  12% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { bottom: 108vh; left: 60vw; opacity: 0; }
+}
+@keyframes fk-razzo-scuoti {
+  0%, 100% { transform: rotate(-18deg) translateX(0); }
+  50% { transform: rotate(-18deg) translateX(6px); }
+}
+.fk-effetto-razzo .fk-effetto-emoji {
+  animation: fk-razzo-vola 2.4s cubic-bezier(0.4, 0, 0.6, 1) forwards,
+    fk-razzo-scuoti 0.12s linear infinite;
+  filter: drop-shadow(0 -20px 34px rgba(255, 138, 61, 0.9));
+}
+
+/* ☄️ scippo: meteora di traverso, veloce e cattiva */
+@keyframes fk-scippo-vola {
+  0% { top: -14vh; left: 104vw; opacity: 0; }
+  12% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { top: 74vh; left: -20vw; opacity: 0; }
+}
+.fk-effetto-scippo .fk-effetto-emoji {
+  animation: fk-scippo-vola 1.5s cubic-bezier(0.3, 0, 0.5, 1) forwards;
+  filter: drop-shadow(16px -12px 28px rgba(255, 201, 77, 0.9));
+}
+.fk-effetto-scippo .fk-effetto-testo { background: rgba(92, 33, 53, 0.92); }
+
+/* 🦖 crediti agli sgoccioli: cammina in fondo allo schermo, dondolando */
+@keyframes fk-dino-cammina {
+  0% { left: -20vw; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: 104vw; opacity: 0; }
+}
+@keyframes fk-dino-passi {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-12px) rotate(2deg); }
+}
+.fk-effetto-dino .fk-effetto-emoji {
+  bottom: 4vh;
+  animation: fk-dino-cammina 3s linear forwards, fk-dino-passi 0.45s ease-in-out infinite;
+}
+.fk-effetto-dino .fk-effetto-testo {
+  background: rgba(28, 46, 26, 0.92);
+  animation-duration: 3s;
+}
+
+/* 💎 affare: appare al centro, pulsa e sparisce */
+@keyframes fk-affare-appare {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-25deg); }
+  45% { opacity: 1; transform: translate(-50%, -50%) scale(1.14) rotate(6deg); }
+  65% { transform: translate(-50%, -50%) scale(0.97) rotate(-3deg); }
+  85% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.06); }
+}
+.fk-effetto-affare .fk-effetto-emoji {
+  top: 40%;
+  left: 50%;
+  animation: fk-affare-appare 3s ease-out forwards;
+  filter: drop-shadow(0 0 34px rgba(120, 220, 255, 0.9));
+}
+.fk-effetto-affare .fk-effetto-testo {
+  background: rgba(16, 60, 76, 0.92);
+  animation-duration: 3s;
+}
+
+/* 🏁 rosa completa: bandiera che scende dall'alto e resta un attimo */
+@keyframes fk-completa-scende {
+  0% { top: -18vh; opacity: 0; }
+  25% { top: 32%; opacity: 1; }
+  75% { top: 34%; opacity: 1; }
+  100% { top: 28%; opacity: 0; }
+}
+.fk-effetto-completa .fk-effetto-emoji {
+  left: 50%;
+  margin-left: -0.5em;
+  animation: fk-completa-scende 3s cubic-bezier(0.3, 1.4, 0.5, 1) forwards;
+}
+.fk-effetto-completa .fk-effetto-testo {
+  background: rgba(60, 44, 16, 0.92);
+  animation-duration: 3s;
+}
+
+/* chi ha chiesto meno movimento vede comparire e sparire, senza voli */
+@media (prefers-reduced-motion: reduce) {
+  .fk-effetto .fk-effetto-emoji {
+    top: 38% !important;
+    left: 50% !important;
+    bottom: auto !important;
+    animation: fk-affare-appare 2.2s ease-out forwards !important;
+  }
+}

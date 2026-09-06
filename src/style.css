@@ -650,20 +650,9 @@ select option { background: var(--surface-solid); color: var(--text); }
 }
 .fk-bid-btn:not(:disabled) { animation: fk-breathe 2.6s ease-in-out infinite; }
 
-.fk-custom-bid {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  margin-top: 14px;
-  flex-wrap: nowrap;
-}
-.fk-custom-bid input { max-width: 100px; min-width: 60px; flex: 1 1 60px; text-align: center; }
-.fk-custom-bid button { flex-shrink: 0; white-space: nowrap; }
-
-/* rilancio rapido + offerta libera sulla stessa riga: il palco dell'asta live
-   ha poco spazio verticale da spartire, due righe separate per due modi di
-   offrire sarebbero uno spreco. */
+/* pulsante di rilancio + "di quanto" sulla stessa riga: un solo modo per
+   offrire invece di due controlli separati (pulsante rapido + offerta
+   libera), meno scelta da fare sotto pressione del countdown. */
 .fk-bid-row {
   display: flex;
   align-items: center;
@@ -672,7 +661,30 @@ select option { background: var(--surface-solid); color: var(--text); }
   gap: 10px clamp(10px, 2.4vw, 20px);
   margin-top: clamp(8px, 1.6vh, 16px);
 }
-.fk-bid-row .fk-custom-bid { margin-top: 0; }
+
+.fk-bid-step {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 0 4px 0 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.fk-bid-step:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.16);
+}
+.fk-bid-step-plus { color: var(--text-faint); font-weight: 700; font-size: 15px; flex-shrink: 0; }
+.fk-bid-step input {
+  border: none;
+  background: none;
+  width: 64px;
+  text-align: center;
+  padding: 10px 4px;
+}
+.fk-bid-step input:focus { box-shadow: none; }
 
 .fk-divider {
   height: 1px;

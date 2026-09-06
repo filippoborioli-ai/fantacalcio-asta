@@ -145,7 +145,7 @@ export default function AstaRoom() {
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState("");
   const [liveForm, setLiveForm] = useState({ nome: "", ruolo: "P", offertaBase: "1" });
-  const [bidValue, setBidValue] = useState("");
+  const [bidValue, setBidValue] = useState("1");
   const [liveErr, setLiveErr] = useState("");
   const [copiato, setCopiato] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
@@ -750,7 +750,7 @@ export default function AstaRoom() {
           rilanci[squadra.id] = (rilanci[squadra.id] || 0) + 1;
           tx.update(ref, { astaLive: nuovoLive, rilanci });
         });
-        setBidValue("");
+        setBidValue("1");
       } catch (e) {
         setLiveErr(e.message || "Errore nell'invio dell'offerta.");
       }
@@ -1316,6 +1316,12 @@ export default function AstaRoom() {
                 occupati(miaSquadra, astaLive.ruolo) >= config.slot[astaLive.ruolo];
               const oltreTetto = astaLive.offertaCorrente + 1 > maxOffertaMia;
               const disabilitato = ruoloPienoLive || oltreTetto;
+              // Di quanto rilanciare: campo libero, di default +1. Un solo
+              // pulsante "Rilancia a N" invece di due controlli separati.
+              const incrementoNum = parseInt(bidValue, 10);
+              const incremento = Number.isFinite(incrementoNum) && incrementoNum > 0 ? incrementoNum : 1;
+              const targetOfferta = astaLive.offertaCorrente + incremento;
+              const rilancioDisabilitato = disabilitato || targetOfferta > maxOffertaMia;
               const inListone = listone.find(
                 (g) => normalizza(g.nome) === normalizza(astaLive.giocatore)
               );
@@ -1420,29 +1426,23 @@ export default function AstaRoom() {
                   <div className="fk-bid-row">
                     <button
                       className="fk-primary fk-bid-btn"
-                      disabled={disabilitato}
-                      onClick={() => faiOfferta(astaLive.offertaCorrente + 1)}
+                      disabled={rilancioDisabilitato}
+                      onClick={() => faiOfferta(targetOfferta)}
                     >
-                      Rilancia a {astaLive.offertaCorrente + 1}
+                      Rilancia a {targetOfferta}
                     </button>
 
-                    <div className="fk-custom-bid">
+                    <div className="fk-bid-step" title="Di quanto rilanciare">
+                      <span className="fk-bid-step-plus">+</span>
                       <input
                         type="number"
-                        min={astaLive.offertaCorrente + 1}
-                        max={maxOffertaMia}
+                        aria-label="Di quanto rilanciare"
+                        min={1}
+                        max={Math.max(1, maxOffertaMia - astaLive.offertaCorrente)}
                         value={bidValue}
-                        placeholder={`> ${astaLive.offertaCorrente}`}
                         onChange={(e) => setBidValue(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && !disabilitato && faiOfferta(bidValue)}
+                        onKeyDown={(e) => e.key === "Enter" && !rilancioDisabilitato && faiOfferta(targetOfferta)}
                       />
-                      <button
-                        className="fk-secondary"
-                        disabled={disabilitato}
-                        onClick={() => faiOfferta(bidValue)}
-                      >
-                        Offerta libera
-                      </button>
                     </div>
                   </div>
 

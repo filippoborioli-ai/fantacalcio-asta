@@ -44,10 +44,18 @@ export default function Consigliere({ endpoint, contesto, domandeFatte, maxDoman
     onDomandaFatta();
 
     try {
+      // Le ultime battute della conversazione: senza queste ogni domanda
+      // parte da zero e le risposte sembrano tutte uguali, perché il modello
+      // non sa cosa ha già detto un attimo prima.
+      const storico = messaggi
+        .slice(-8)
+        .filter((m) => !m.errore)
+        .map((m) => ({ ruolo: m.da === "io" ? "utente" : "bot", testo: m.testo }));
+
       const risposta = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domanda, contesto }),
+        body: JSON.stringify({ domanda, contesto, storico }),
       });
       const dati = await risposta.json().catch(() => ({}));
       setMessaggi((m) => [

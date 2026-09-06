@@ -17,6 +17,7 @@ const MODELLO = "gpt-4o-mini"; // il più economico adatto allo scopo
 const MAX_TOKEN_RISPOSTA = 220; // risposte brevi: due o tre frasi
 const MAX_CARATTERI_DOMANDA = 300;
 const MAX_CARATTERI_CONTESTO = 2000;
+const MAX_TURNI_STORICO = 6; // ultime battute, non tutta la chat
 
 // Da dove si accettano chiamate. Tutto il resto viene rifiutato: senza questo,
 // il centralino sarebbe un distributore di risposte gratis per chiunque.
@@ -29,14 +30,23 @@ const ORIGINI_AMMESSE = [
 const ISTRUZIONI = `Sei il consigliere di un'asta del fantacalcio tra amici, in italiano.
 Rispondi in modo diretto e breve: due o tre frasi, niente elenchi lunghi, niente premesse.
 
-Ti vengono forniti i dati REALI dell'asta in corso: usali come base del ragionamento
-(crediti residui, posti liberi nel reparto, offerta massima sostenibile, quanto è stato
-pagato stasera). Su quei numeri puoi essere preciso.
+Ti vengono forniti i dati REALI dell'asta in corso (crediti residui, posti liberi nel
+reparto, offerta massima sostenibile, chi è all'asta in questo momento, quanto è stato
+pagato stasera). Sono lo sfondo, non l'argomento: usali solo per la parte della domanda
+a cui servono davvero.
+
+Regola più importante: rispondi ESATTAMENTE alla domanda posta. Se parla di un giocatore,
+resta su quel giocatore. Se parla di budget, reparti o strategia in generale, NON tirare in
+ballo il giocatore attualmente all'asta a meno che la domanda non lo chieda — è lo sbaglio
+più facile da fare con questi dati sottomano, evitalo. Non chiudere ogni risposta con una
+cifra di credito se la domanda non la richiede: una cifra quando serve, non come tic.
+
+Guarda anche le battute precedenti della stessa conversazione, se ci sono: non ripetere un
+consiglio già dato, e se la domanda è un seguito della precedente rispondi di conseguenza
+invece di ripartire da zero.
 
 Sulla forma attuale dei giocatori, infortuni e trasferimenti recenti NON sei aggiornato:
-se la domanda dipende da quelli, dillo in mezza riga invece di inventare.
-
-Dai un consiglio pratico, con una cifra quando ha senso ("io non andrei oltre 30").`;
+se la domanda dipende da quelli, dillo in mezza riga invece di inventare.`;
 
 function intestazioniCors(origine) {
   const ammessa = ORIGINI_AMMESSE.includes(origine) ? origine : ORIGINI_AMMESSE[0];
@@ -85,6 +95,20 @@ export default {
       return risposta({ errore: "Domanda vuota." }, 400, origine);
     }
 
+    // Lo storico arriva dal browser: non ci si fida del contenuto (stesso
+    // discorso della domanda), solo della forma. Il contesto dell'asta lo si
+    // ripete ad ogni giro solo nell'ultimo messaggio, non su ogni battuta
+    // vecchia: altrimenti il modello lo rilegge più volte e ci si fissa sopra,
+    // esattamente il problema che questo storico dovrebbe risolvere.
+    const storicoGrezzo = Array.isArray(corpo?.storico) ? corpo.storico : [];
+    const turniPrecedenti = storicoGrezzo
+      .slice(-MAX_TURNI_STORICO * 2)
+      .map((m) => ({
+        role: m?.ruolo === "utente" ? "user" : "assistant",
+        content: String(m?.testo || "").trim().slice(0, MAX_CARATTERI_DOMANDA),
+      }))
+      .filter((m) => m.content);
+
     try {
       const chiamata = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -98,9 +122,10 @@ export default {
           temperature: 0.6,
           messages: [
             { role: "system", content: ISTRUZIONI },
+            ...turniPrecedenti,
             {
               role: "user",
-              content: contesto ? `Situazione dell'asta:\n${contesto}\n\nDomanda: ${domanda}` : domanda,
+              content: contesto ? `Situazione dell'asta ora:\n${contesto}\n\nDomanda: ${domanda}` : domanda,
             },
           ],
         }),

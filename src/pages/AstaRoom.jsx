@@ -25,7 +25,7 @@ import Consigliere from "../components/Consigliere.jsx";
 // worker/LEGGIMI.md). Qui c'è solo un URL pubblico: la chiave non passa mai
 // da questa parte. Se non è configurato, il consigliere resta spento.
 const CONSIGLIERE_URL = import.meta.env.VITE_CONSIGLIERE_URL || "";
-const MAX_DOMANDE_CONSIGLIERE = 20;
+const MAX_DOMANDE_CONSIGLIERE = 10;
 import Premiazione from "../components/Premiazione.jsx";
 import { suona } from "../lib/suoni.js";
 import {

@@ -18,6 +18,7 @@ import GiocatoreInput from "../components/GiocatoreInput.jsx";
 import TemaToggle from "../components/TemaToggle.jsx";
 import AudioToggle from "../components/AudioToggle.jsx";
 import SlotChiamata from "../components/SlotChiamata.jsx";
+import SlotScelta from "../components/SlotScelta.jsx";
 import Premiazione from "../components/Premiazione.jsx";
 import { suona } from "../lib/suoni.js";
 import {
@@ -288,6 +289,63 @@ export default function AstaRoom() {
       .filter((g) => !q || normalizza(g.nome).includes(q))
       .sort((a, b) => b.quotazione - a.quotazione || a.nome.localeCompare(b.nome));
   }, [liberiPerSorteggio, dispRuolo, dispSquadra, dispQuery]);
+
+  // Il sorteggio vive sul documento, non nel browser di chi lo lancia: così i
+  // rulli girano su tutti gli schermi insieme, con lo stesso esito. Un
+  // sorteggio vecchio viene ignorato, altrimenti una scheda chiusa a metà
+  // lascerebbe la slot piantata addosso a tutti gli altri.
+  const sorteggio = useMemo(() => {
+    const s = stato?.sorteggio;
+    if (!s || !s.vincitore || !s.reels) return null;
+    if (s.ts && Date.now() - s.ts > 120000) return null;
+    return s;
+  }, [stato?.sorteggio]);
+
+  const lanciaSorteggio = useCallback(
+    async (ruolo) => {
+      const mia = (squadre || []).find((s) => s.id === deviceRole);
+      const candidati =
+        ruolo === "TUTTI"
+          ? liberiPerSorteggio
+          : liberiPerSorteggio.filter((g) => g.ruolo === ruolo);
+      if (candidati.length === 0) return;
+
+      const vincitore = candidati[Math.floor(Math.random() * candidati.length)];
+      // I rulli sono già decisi qui e viaggiano nel documento: due telefoni
+      // non possono estrarre a caso due sequenze diverse.
+      const pesca = () => liberiPerSorteggio[Math.floor(Math.random() * liberiPerSorteggio.length)];
+      const rullo = (campo, valoreFinale) => [
+        ...Array.from({ length: 17 }, () => pesca()[campo] || "—"),
+        valoreFinale,
+      ];
+
+      await updateDoc(ref, {
+        sorteggio: {
+          id: uid(),
+          daId: deviceRole || null,
+          daNome: mia?.nome || null,
+          ruolo,
+          ts: Date.now(),
+          vincitore: {
+            nome: vincitore.nome,
+            ruolo: vincitore.ruolo,
+            squadra: vincitore.squadra || "",
+            quotazione: vincitore.quotazione || 0,
+          },
+          reels: {
+            ruoli: rullo("ruolo", vincitore.ruolo),
+            nomi: rullo("nome", vincitore.nome),
+            club: rullo("squadra", vincitore.squadra || "—"),
+          },
+        },
+      });
+    },
+    [ref, squadre, deviceRole, liberiPerSorteggio]
+  );
+
+  const chiudiSorteggio = useCallback(async () => {
+    await updateDoc(ref, { sorteggio: null });
+  }, [ref]);
 
   // "Chi ha preso X?": cerca tra i giocatori già in rosa, in tutte le squadre.
   // Ordinati per prezzo, così se ci sono più omonimi si distinguono subito.
@@ -1312,15 +1370,29 @@ export default function AstaRoom() {
           onChiudi={() => setPremiAperti(false)}
         />
       )}
-      {slotAperta && (
-        <SlotChiamata
-          disponibili={liberiPerSorteggio}
+      {/* La scelta del reparto resta locale a chi lancia; i rulli invece li
+          vedono tutti, perché il sorteggio sta sul documento condiviso. */}
+      {slotAperta && !sorteggio && (
+        <SlotScelta
+          conteggi={disponibiliPerRuolo || {}}
           onChiudi={() => setSlotAperta(false)}
-          onEstratto={(g) => {
-            setLiveForm((f) => ({ ...f, nome: g.nome, ruolo: g.ruolo }));
+          onGira={async (ruolo) => {
             setSlotAperta(false);
-            setTab("live");
+            await lanciaSorteggio(ruolo);
           }}
+        />
+      )}
+      {sorteggio && (
+        <SlotChiamata
+          sorteggio={sorteggio}
+          sonoIoIlLanciatore={sorteggio.daId === deviceRole}
+          onChiama={(g) => {
+            setLiveForm((f) => ({ ...f, nome: g.nome, ruolo: g.ruolo }));
+            setTab("live");
+            chiudiSorteggio();
+          }}
+          onRigira={() => lanciaSorteggio(sorteggio.ruolo)}
+          onChiudi={chiudiSorteggio}
         />
       )}
       {aggiudicazione && (

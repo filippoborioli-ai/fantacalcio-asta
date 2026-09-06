@@ -2027,7 +2027,7 @@ select option { background: var(--surface-solid); color: var(--text); }
 }
 
 /* =========================================================
-   SLOT — chiamata a sorte del prossimo giocatore
+   SLOT — la macchinetta a tre rulli
    ========================================================= */
 .fk-slot-overlay {
   position: fixed;
@@ -2037,92 +2037,141 @@ select option { background: var(--surface-solid); color: var(--text); }
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(10, 6, 16, 0.72);
+  background: rgba(8, 5, 14, 0.78);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   animation: fk-slot-sfondo 0.25s ease-out;
 }
 @keyframes fk-slot-sfondo { from { opacity: 0; } to { opacity: 1; } }
 
-.fk-slot-box {
-  width: min(460px, 100%);
-  background: var(--surface-solid);
-  border: 1px solid var(--gold-line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-pop);
-  padding: 20px;
+/* Il mobiletto: bordo dorato spesso, come una macchinetta da sala giochi */
+.fk-slot-macchina {
+  width: min(520px, 100%);
+  background: linear-gradient(180deg, var(--bg-2), var(--surface-solid));
+  border: 3px solid var(--gold);
+  border-radius: 20px;
+  box-shadow: var(--shadow-pop), 0 0 60px -12px rgba(255, 201, 77, 0.45);
+  padding: 18px 18px 20px;
   text-align: center;
-  animation: fk-slot-entra 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: fk-slot-entra 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 @keyframes fk-slot-entra {
-  from { opacity: 0; transform: scale(0.9) translateY(12px); }
+  from { opacity: 0; transform: scale(0.88) translateY(16px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.fk-slot-testata { margin-bottom: 14px; }
+/* lucine che si accendono a turno, come sull'insegna */
+.fk-slot-luci { display: flex; justify-content: center; gap: 7px; margin-bottom: 10px; }
+.fk-slot-luci i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  opacity: 0.25;
+  animation: fk-slot-luce 1.1s ease-in-out infinite;
+}
+.fk-slot-luci i:nth-child(2) { animation-delay: 0.13s; }
+.fk-slot-luci i:nth-child(3) { animation-delay: 0.26s; }
+.fk-slot-luci i:nth-child(4) { animation-delay: 0.39s; }
+.fk-slot-luci i:nth-child(5) { animation-delay: 0.52s; }
+.fk-slot-luci i:nth-child(6) { animation-delay: 0.65s; }
+.fk-slot-luci i:nth-child(7) { animation-delay: 0.78s; }
+@keyframes fk-slot-luce {
+  0%, 100% { opacity: 0.22; box-shadow: none; }
+  50% { opacity: 1; box-shadow: 0 0 10px var(--gold); }
 }
 .fk-slot-titolo {
   display: block;
   font-family: 'Fraunces', Georgia, serif;
-  font-size: 19px;
+  font-size: 21px;
   font-weight: 700;
-  margin-bottom: 14px;
   color: var(--gold-ink);
 }
+.fk-slot-chi { display: block; font-size: 12px; color: var(--text-faint); margin-top: 3px; }
 
-/* La finestrella: si vedono tre righe, quella al centro e il risultato. */
-.fk-slot-finestra {
+/* I tre rulli affiancati, con la banda del risultato che li attraversa */
+.fk-slot-rulli {
   position: relative;
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) minmax(0, 0.75fr);
+  gap: 6px;
   height: 162px;
-  overflow: hidden;
-  border-radius: var(--radius-sm);
-  background: var(--well);
-  border: 1px solid var(--line);
-  mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent);
-  -webkit-mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent);
+  padding: 0 4px;
+  border-radius: 12px;
+  background: var(--well-2);
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 6px 16px rgba(0, 0, 0, 0.45);
 }
-.fk-slot-riga-attiva {
+.fk-slot-banda {
   position: absolute;
   top: 54px;
   left: 0;
   right: 0;
   height: 54px;
-  border-top: 1px solid var(--gold-line);
-  border-bottom: 1px solid var(--gold-line);
-  background: var(--gold-soft);
+  border-top: 2px solid var(--gold);
+  border-bottom: 2px solid var(--gold);
+  background: rgba(255, 201, 77, 0.1);
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
+}
+.fk-slot-rulli-vinta .fk-slot-banda {
+  background: rgba(255, 201, 77, 0.22);
+  animation: fk-slot-vinta 0.5s ease-out 3;
+}
+@keyframes fk-slot-vinta {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 201, 77, 0); }
+  50% { box-shadow: 0 0 26px rgba(255, 201, 77, 0.75); }
+}
+.fk-slot-rullo-box {
+  overflow: hidden;
+  min-width: 0;
+  mask-image: linear-gradient(180deg, transparent, #000 24%, #000 76%, transparent);
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 24%, #000 76%, transparent);
 }
 .fk-slot-rullo {
   transition-property: transform;
-  transition-timing-function: cubic-bezier(0.15, 0.85, 0.15, 1);
+  transition-timing-function: cubic-bezier(0.12, 0.8, 0.15, 1);
 }
-.fk-slot-riga {
+.fk-slot-cella {
   height: 54px;
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 0 14px;
+  justify-content: center;
+  padding: 0 8px;
 }
-.fk-slot-nome {
+.fk-slot-valore {
   font-weight: 700;
   font-size: 15px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
-.fk-slot-club {
-  margin-left: auto;
-  font-size: 11.5px;
-  color: var(--text-faint);
-  white-space: nowrap;
+.fk-slot-rulli-vinta .fk-slot-valore { color: var(--gold-ink); }
+
+.fk-slot-esito {
+  margin-top: 14px;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 17px;
+  animation: fk-slot-azioni-entra 0.3s ease-out;
 }
+.fk-slot-esito strong { color: var(--gold-ink); }
+
+.fk-slot-ruoli {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 7px;
+  margin-bottom: 4px;
+}
+.fk-slot-ruoli .fk-choice { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.fk-slot-quanti { font-size: 10.5px; opacity: 0.7; font-weight: 700; }
 
 .fk-slot-attesa {
-  margin-top: 14px;
+  margin-top: 12px;
   font-size: 12.5px;
   color: var(--text-faint);
-  animation: fk-slot-lampeggia 1s ease-in-out infinite;
 }
-@keyframes fk-slot-lampeggia { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-
 .fk-slot-azioni {
   display: flex;
   gap: 8px;
@@ -2136,6 +2185,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   to { opacity: 1; transform: translateY(0); }
 }
 .fk-slot-azioni .fk-primary { padding: 11px 20px; font-size: 14px; }
+.fk-slot-leva { font-size: 15px !important; }
 
 /* pulsante che apre la slot, sul palco */
 .fk-slot-btn {
@@ -2160,88 +2210,15 @@ select option { background: var(--surface-solid); color: var(--text); }
 .fk-slot-btn:active:not(:disabled) { transform: scale(0.98); }
 .fk-slot-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
+@media (max-width: 460px) {
+  .fk-slot-rulli { grid-template-columns: 54px minmax(0, 1fr) minmax(0, 0.7fr); }
+  .fk-slot-valore { font-size: 13px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .fk-slot-rullo { transition-duration: 0.4s !important; }
-  .fk-slot-overlay, .fk-slot-box, .fk-slot-azioni, .fk-slot-attesa { animation: none; }
+  .fk-slot-luci i, .fk-slot-rulli-vinta .fk-slot-banda { animation: none; }
+  .fk-slot-overlay, .fk-slot-macchina, .fk-slot-azioni, .fk-slot-esito { animation: none; }
 }
-
-/* =========================================================
-   PREMIAZIONE — gli Oscar dell'asta
-   ========================================================= */
-.fk-premi-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 125;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: rgba(10, 6, 16, 0.75);
-  backdrop-filter: blur(7px);
-  -webkit-backdrop-filter: blur(7px);
-  animation: fk-slot-sfondo 0.25s ease-out;
-  overflow-y: auto;
-}
-.fk-premi-box {
-  position: relative;
-  width: min(500px, 100%);
-  background: var(--surface-solid);
-  border: 1px solid var(--gold-line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-pop);
-  padding: 22px 20px;
-  animation: fk-slot-entra 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.fk-premi-chiudi {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 99px;
-  background: var(--control-bg);
-  border: 1px solid var(--line);
-  color: var(--text-dim);
-  cursor: pointer;
-}
-.fk-premi-chiudi:hover { color: var(--text); background: var(--control-bg-hover); }
-.fk-premi-titolo {
-  display: block;
-  text-align: center;
-  font-family: 'Fraunces', Georgia, serif;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--gold-ink);
-  margin-bottom: 18px;
-}
-.fk-premi-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
-.fk-premi-lista li {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  padding: 11px 13px;
-  background: var(--well);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  animation: fk-premi-entra 0.4s ease-out both;
-}
-@keyframes fk-premi-entra {
-  from { opacity: 0; transform: translateX(-14px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-.fk-premi-emoji { font-size: 30px; line-height: 1; flex-shrink: 0; }
-.fk-premi-testi { display: flex; flex-direction: column; min-width: 0; }
-.fk-premi-nome {
-  font-family: 'Fraunces', Georgia, serif;
-  font-weight: 700;
-  font-size: 15px;
-  color: var(--gold-ink);
-}
-.fk-premi-squadra { font-size: 13.5px; font-weight: 700; margin-top: 1px; }
-.fk-premi-dettaglio { font-size: 11.5px; color: var(--text-faint); margin-top: 2px; }
 
 .fk-premi-apri {
   display: inline-flex;

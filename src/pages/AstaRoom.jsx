@@ -37,8 +37,8 @@ import confetti from "canvas-confetti";
 // grande e dorata per i top player (quotazione alta nel listone).
 function spara(top) {
   const colori = top
-    ? ["#C99A2E", "#F3DFA0", "#FBF3EE"]
-    : ["#3B7A45", "#1C2B22", "#EADFB4"];
+    ? ["#F5C542", "#F3DFA0", "#FFFFFF"]
+    : ["#35D07F", "#4EA8DE", "#F5C542"];
   confetti({
     particleCount: top ? 140 : 70,
     spread: top ? 100 : 70,
@@ -55,6 +55,47 @@ function spara(top) {
       () => confetti({ particleCount: 90, angle: 120, spread: 60, colors: colori, origin: { x: 1, y: 0.5 } }),
       350
     );
+  }
+}
+
+// Piccoli suoni sintetizzati via WebAudio (niente file da caricare). Falliscono
+// in silenzio se il browser blocca l'audio: mai un errore visibile per questo.
+let audioCtx = null;
+function suona(tipo) {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const ora = audioCtx.currentTime;
+    const note = (freq, inizio, durata, volume = 0.09) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, ora + inizio);
+      gain.gain.linearRampToValueAtTime(volume, ora + inizio + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ora + inizio + durata);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(ora + inizio);
+      osc.stop(ora + inizio + durata + 0.05);
+    };
+    if (tipo === "assegnato") {
+      note(660, 0, 0.12);
+      note(880, 0.1, 0.22);
+    } else if (tipo === "top") {
+      note(523, 0, 0.1);
+      note(659, 0.09, 0.1);
+      note(880, 0.18, 0.3);
+    } else if (tipo === "rush") {
+      note(740, 0, 0.08, 0.06);
+    } else if (tipo === "superato") {
+      note(300, 0, 0.16, 0.07);
+      note(220, 0.1, 0.2, 0.07);
+    } else if (tipo === "squadra") {
+      note(587, 0, 0.1, 0.07);
+      note(784, 0.08, 0.18, 0.07);
+    }
+  } catch (e) {
+    // audio non disponibile: nessun problema, l'app funziona lo stesso
   }
 }
 
@@ -96,9 +137,20 @@ export default function AstaRoom() {
   const [dispRuolo, setDispRuolo] = useState("TUTTI");
   const [dispQuery, setDispQuery] = useState("");
   const [sbloccaImpostazioni, setSbloccaImpostazioni] = useState(false);
-  const [celebrazione, setCelebrazione] = useState(null);
+  const [toasts, setToasts] = useState([]);
   const [inRush, setInRush] = useState(false);
+  const [superato, setSuperato] = useState(false);
   const prevGiocatoriIdsRef = useRef(null);
+  const prevSquadraIdsRef = useRef(null);
+  const prevAstaLiveRef = useRef(null);
+  const tabInitRef = useRef(false);
+  const inRushRef = useRef(false);
+
+  const aggiungiToast = useCallback((toast) => {
+    const id = uid();
+    setToasts((t) => [...t.slice(-2), { id, ...toast }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), toast.durata || 4200);
+  }, []);
 
   // Sottoscrizione realtime al documento dell'asta
   useEffect(() => {
@@ -134,11 +186,17 @@ export default function AstaRoom() {
     }
   };
 
-  // Inizializzo le bozze di configurazione (solo se l'asta non è ancora iniziata) una sola volta
+  // Inizializzo le bozze di configurazione (solo se l'asta non è ancora iniziata) una sola volta.
+  // Se l'asta è già partita, si riapre direttamente su "Asta Live" invece che
+  // su "Impostazioni": è la scheda che serve davvero durante la serata.
   useEffect(() => {
     if (stato && !draftInitRef.current) {
       setConfigDraft({ ...defaultConfig(), ...(stato.config || {}) });
       draftInitRef.current = true;
+    }
+    if (stato && stato.squadre !== null && !tabInitRef.current) {
+      setTab("live");
+      tabInitRef.current = true;
     }
   }, [stato]);
 
@@ -190,20 +248,88 @@ export default function AstaRoom() {
         if (nuovo) {
           const inListone = listone.find((g) => normalizza(g.nome) === normalizza(nuovo.nome));
           const top = !!inListone && inListone.quotazione >= 25;
-          setCelebrazione({ nome: nuovo.nome, squadraNome: s.nome, crediti: nuovo.crediti, top });
+          aggiungiToast({
+            tipo: top ? "giocatore-top" : "giocatore",
+            emoji: top ? "🏆" : "🎉",
+            titolo: (
+              <>
+                <strong>{nuovo.nome}</strong> a <strong>{s.nome}</strong>
+              </>
+            ),
+            sub: `${nuovo.crediti} crediti`,
+          });
           spara(top);
+          suona(top ? "top" : "assegnato");
           break;
         }
       }
     }
     prevGiocatoriIdsRef.current = idsAttuali;
-  }, [squadre, listone]);
+  }, [squadre, listone, aggiungiToast]);
 
+  // Nuova squadra iscritta: piccolo benvenuto per tutti, così si sente che
+  // la lega si sta riempiendo.
   useEffect(() => {
-    if (!celebrazione) return;
-    const id = setTimeout(() => setCelebrazione(null), 4200);
-    return () => clearTimeout(id);
-  }, [celebrazione]);
+    if (!squadre) return;
+    const idsAttuali = new Set(squadre.map((s) => s.id));
+    const idsPrima = prevSquadraIdsRef.current;
+    if (idsPrima) {
+      const nuova = squadre.find((s) => !idsPrima.has(s.id));
+      if (nuova) {
+        aggiungiToast({
+          tipo: "squadra",
+          emoji: "🎊",
+          titolo: (
+            <>
+              <strong>{nuova.nome}</strong> è entrata in lega
+            </>
+          ),
+          sub: "In bocca al lupo!",
+        });
+        suona("squadra");
+      }
+    }
+    prevSquadraIdsRef.current = idsAttuali;
+  }, [squadre, aggiungiToast]);
+
+  // Asta chiusa senza offerte, o superato mentre ero in testa: confronto lo
+  // stato precedente di astaLive per accorgermi di entrambe le cose. "Sei
+  // stato superato" è locale al dispositivo interessato (dipende da deviceRole).
+  useEffect(() => {
+    const prima = prevAstaLiveRef.current;
+    if (prima && prima.attiva) {
+      if (!astaLive?.attiva && prima.giocatore && !prima.squadraOfferenteId) {
+        aggiungiToast({
+          tipo: "passato",
+          emoji: "😮‍💨",
+          titolo: (
+            <>
+              Nessuno ha voluto <strong>{prima.giocatore}</strong>
+            </>
+          ),
+          sub: "Torna tra i disponibili",
+        });
+      } else if (
+        astaLive?.attiva &&
+        astaLive.giocatore === prima.giocatore &&
+        prima.squadraOfferenteId === deviceRole &&
+        astaLive.squadraOfferenteId !== deviceRole &&
+        astaLive.squadraOfferenteId
+      ) {
+        aggiungiToast({
+          tipo: "superato",
+          emoji: "⚡",
+          titolo: <strong>Sei stato superato!</strong>,
+          sub: `${astaLive.squadraOfferenteNome} ha rilanciato a ${astaLive.offertaCorrente}`,
+          durata: 3200,
+        });
+        suona("superato");
+        setSuperato(true);
+        setTimeout(() => setSuperato(false), 650);
+      }
+    }
+    prevAstaLiveRef.current = astaLive;
+  }, [astaLive, deviceRole, aggiungiToast]);
 
   // "Rush": due rilanci ravvicinati di fila accendono l'effetto visivo, si
   // spegne da solo se i rilanci rallentano.
@@ -216,6 +342,8 @@ export default function AstaRoom() {
     const ultimo = storico[storico.length - 1].ts;
     const penultimo = storico[storico.length - 2].ts;
     const acceso = ultimo - penultimo < 4000 && Date.now() - ultimo < 6000;
+    if (acceso && !inRushRef.current) suona("rush");
+    inRushRef.current = acceso;
     setInRush(acceso);
     if (acceso) {
       const id = setTimeout(() => setInRush(false), 6000);
@@ -419,6 +547,7 @@ export default function AstaRoom() {
     }
     await updateDoc(ref, {
       astaLive: {
+        id: uid(),
         attiva: true,
         giocatore: nome,
         ruolo: liveForm.ruolo,
@@ -648,15 +777,21 @@ export default function AstaRoom() {
 
   return (
     <div className="fk-root">
-      {celebrazione && (
-        <div className={celebrazione.top ? "fk-toast fk-toast-top" : "fk-toast"}>
-          <span className="fk-toast-emoji">{celebrazione.top ? "🏆" : "🎉"}</span>
-          <div>
-            <strong>{celebrazione.nome}</strong> a <strong>{celebrazione.squadraNome}</strong>
-            <div className="fk-toast-sub">{celebrazione.crediti} crediti</div>
+      <div className="fk-toast-stack">
+        {toasts.map((t, i) => (
+          <div
+            key={t.id}
+            className={`fk-toast fk-toast-${t.tipo}`}
+            style={{ "--i": i }}
+          >
+            <span className="fk-toast-emoji">{t.emoji}</span>
+            <div>
+              <div className="fk-toast-title">{t.titolo}</div>
+              {t.sub && <div className="fk-toast-sub">{t.sub}</div>}
+            </div>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
       <header className="fk-header">
         <div className="fk-topbar">
           <div className="fk-brand">
@@ -726,38 +861,6 @@ export default function AstaRoom() {
                 </button>
               </div>
             )}
-            <span className="fk-section-label">Elenco giocatori Serie A</span>
-            <p className="fk-hint" style={{ marginTop: 0 }}>
-              Carica il file Excel delle quotazioni: attiva l'autocompletamento nome → ruolo +
-              squadra. Si carica una volta a stagione e vale per tutte le aste.
-            </p>
-            <label className="fk-upload-btn">
-              <Upload size={14} />
-              {caricandoListone ? "Carico…" : "Carica file Excel"}
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                hidden
-                disabled={caricandoListone}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (file) caricaListone(file);
-                }}
-              />
-            </label>
-            {listoneErr && (
-              <p className="fk-error">
-                <AlertTriangle size={14} /> {listoneErr}
-              </p>
-            )}
-            <p className="fk-hint">
-              {listoneDoc
-                ? `Elenco caricato: ${listoneDoc.numeroGiocatori} giocatori.`
-                : "Nessun elenco caricato ancora: i campi nome restano comunque scrivibili a mano."}
-            </p>
-
-            <div className="fk-divider" />
             <span className="fk-section-label">Regole dell'asta</span>
             {(() => {
               const bloccato = asta_iniziata && !sbloccaImpostazioni;
@@ -832,6 +935,38 @@ export default function AstaRoom() {
             <p className="fk-hint">
               Le squadre non si impostano qui: chi entra con il codice va nella scheda "Asta
               Live" e crea la propria squadra con il nome che preferisce.
+            </p>
+
+            <div className="fk-divider" />
+            <span className="fk-section-label">Elenco giocatori Serie A (facoltativo)</span>
+            <p className="fk-hint" style={{ marginTop: 0 }}>
+              Carica il file Excel delle quotazioni: attiva l'autocompletamento nome → ruolo +
+              squadra. Si carica una volta a stagione e vale per tutte le aste.
+            </p>
+            <label className="fk-upload-btn">
+              <Upload size={14} />
+              {caricandoListone ? "Carico…" : "Carica file Excel"}
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                hidden
+                disabled={caricandoListone}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) caricaListone(file);
+                }}
+              />
+            </label>
+            {listoneErr && (
+              <p className="fk-error">
+                <AlertTriangle size={14} /> {listoneErr}
+              </p>
+            )}
+            <p className="fk-hint">
+              {listoneDoc
+                ? `Elenco caricato: ${listoneDoc.numeroGiocatori} giocatori.`
+                : "Nessun elenco caricato ancora: i campi nome restano comunque scrivibili a mano."}
             </p>
 
             {!asta_iniziata && (
@@ -983,7 +1118,18 @@ export default function AstaRoom() {
                     Giochi come <strong>{miaSquadra.nome}</strong>
                   </p>
 
-                  <div className={inRush ? "fk-card fk-stage fk-stage-rush" : "fk-card fk-stage"}>
+                  <div
+                    key={astaLive.id}
+                    className={[
+                      "fk-card",
+                      "fk-stage",
+                      "fk-stage-in",
+                      inRush ? "fk-stage-rush" : "",
+                      superato ? "fk-stage-shake" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
                     <span className="fk-section-label">All'asta ora</span>
                     <p className="fk-live-player">
                       <span className="fk-chip" style={{ background: ruoloInfo.colore }}>
@@ -1398,8 +1544,21 @@ export default function AstaRoom() {
                   <ul className="fk-disp-list">
                     {giocatoriDisponibili.map((g, i) => {
                       const r = RUOLI.find((x) => x.key === g.ruolo);
+                      const occupata = !!astaLive?.attiva;
                       return (
-                        <li key={`${g.nome}-${i}`}>
+                        <li
+                          key={`${g.nome}-${i}`}
+                          className="fk-disp-clickable"
+                          title={
+                            occupata
+                              ? "C'è già un'asta in corso: si precompila per dopo"
+                              : "Mettilo all'asta"
+                          }
+                          onClick={() => {
+                            setLiveForm((f) => ({ ...f, nome: g.nome, ruolo: g.ruolo }));
+                            setTab("live");
+                          }}
+                        >
                           <span className="fk-chip" style={{ background: r?.colore }}>
                             {g.ruolo}
                           </span>

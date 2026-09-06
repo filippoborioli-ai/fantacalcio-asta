@@ -34,8 +34,12 @@ fallisse, la spesa si ferma comunque lì. Non saltare questo passo.
 ### 3. Crea il Worker
 
 1. Vai su [dash.cloudflare.com](https://dash.cloudflare.com) (registrazione gratuita)
-2. **Workers & Pages** → **Create** → **Start with Hello World!** → **Deploy**
-3. Dagli un nome, per esempio `consigliere-asta`
+2. Menu di sinistra → **Compute** → **Workers** → **Create**
+
+   (Cloudflare rinomina spesso questa sezione: se non trovi "Compute" cerca
+   "Workers" nella ricerca rapida in alto a sinistra.)
+3. Parti dal template base (**Hello World**), dai un nome — per esempio
+   `consigliere-asta` — e fai **Deploy**
 4. Apri **Edit code**, cancella tutto e incolla il contenuto di
    [`consigliere.js`](./consigliere.js)
 5. **Deploy**

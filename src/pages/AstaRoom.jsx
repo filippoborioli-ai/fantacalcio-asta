@@ -31,6 +31,32 @@ import {
   LogOut,
 } from "lucide-react";
 import * as XLSX from "xlsx";
+import confetti from "canvas-confetti";
+
+// Fuochi d'artificio quando un giocatore viene assegnato: raffica più
+// grande e dorata per i top player (quotazione alta nel listone).
+function spara(top) {
+  const colori = top
+    ? ["#C99A2E", "#F3DFA0", "#FBF3EE"]
+    : ["#3B7A45", "#1C2B22", "#EADFB4"];
+  confetti({
+    particleCount: top ? 140 : 70,
+    spread: top ? 100 : 70,
+    startVelocity: top ? 55 : 40,
+    colors: colori,
+    origin: { y: 0.3 },
+  });
+  if (top) {
+    setTimeout(
+      () => confetti({ particleCount: 90, angle: 60, spread: 60, colors: colori, origin: { x: 0, y: 0.5 } }),
+      200
+    );
+    setTimeout(
+      () => confetti({ particleCount: 90, angle: 120, spread: 60, colors: colori, origin: { x: 1, y: 0.5 } }),
+      350
+    );
+  }
+}
 
 export default function AstaRoom() {
   const { codice } = useParams();
@@ -70,6 +96,9 @@ export default function AstaRoom() {
   const [dispRuolo, setDispRuolo] = useState("TUTTI");
   const [dispQuery, setDispQuery] = useState("");
   const [sbloccaImpostazioni, setSbloccaImpostazioni] = useState(false);
+  const [celebrazione, setCelebrazione] = useState(null);
+  const [inRush, setInRush] = useState(false);
+  const prevGiocatoriIdsRef = useRef(null);
 
   // Sottoscrizione realtime al documento dell'asta
   useEffect(() => {
@@ -145,6 +174,54 @@ export default function AstaRoom() {
       .filter((g) => !q || normalizza(g.nome).includes(q))
       .sort((a, b) => b.quotazione - a.quotazione || a.nome.localeCompare(b.nome));
   }, [listone, squadre, dispRuolo, dispQuery]);
+
+  // Festeggiamento: appena un giocatore viene assegnato (da qualunque
+  // dispositivo), tutti quelli connessi lo vedono e partono i fuochi
+  // d'artificio — confronto gli id dei giocatori in rosa prima/dopo lo
+  // snapshot per scoprire chi si è appena aggiudicato chi.
+  useEffect(() => {
+    if (!squadre) return;
+    const idsAttuali = new Set();
+    squadre.forEach((s) => s.giocatori.forEach((g) => idsAttuali.add(g.id)));
+    const idsPrima = prevGiocatoriIdsRef.current;
+    if (idsPrima) {
+      for (const s of squadre) {
+        const nuovo = s.giocatori.find((g) => !idsPrima.has(g.id));
+        if (nuovo) {
+          const inListone = listone.find((g) => normalizza(g.nome) === normalizza(nuovo.nome));
+          const top = !!inListone && inListone.quotazione >= 25;
+          setCelebrazione({ nome: nuovo.nome, squadraNome: s.nome, crediti: nuovo.crediti, top });
+          spara(top);
+          break;
+        }
+      }
+    }
+    prevGiocatoriIdsRef.current = idsAttuali;
+  }, [squadre, listone]);
+
+  useEffect(() => {
+    if (!celebrazione) return;
+    const id = setTimeout(() => setCelebrazione(null), 4200);
+    return () => clearTimeout(id);
+  }, [celebrazione]);
+
+  // "Rush": due rilanci ravvicinati di fila accendono l'effetto visivo, si
+  // spegne da solo se i rilanci rallentano.
+  useEffect(() => {
+    const storico = astaLive?.storico;
+    if (!storico || storico.length < 2) {
+      setInRush(false);
+      return;
+    }
+    const ultimo = storico[storico.length - 1].ts;
+    const penultimo = storico[storico.length - 2].ts;
+    const acceso = ultimo - penultimo < 4000 && Date.now() - ultimo < 6000;
+    setInRush(acceso);
+    if (acceso) {
+      const id = setTimeout(() => setInRush(false), 6000);
+      return () => clearTimeout(id);
+    }
+  }, [astaLive?.storico]);
 
   const iniziaAsta = async () => {
     // Nessuna squadra all'inizio: chi entra con il codice si registra da
@@ -575,6 +652,15 @@ export default function AstaRoom() {
 
   return (
     <div className="fk-root">
+      {celebrazione && (
+        <div className={celebrazione.top ? "fk-toast fk-toast-top" : "fk-toast"}>
+          <span className="fk-toast-emoji">{celebrazione.top ? "🏆" : "🎉"}</span>
+          <div>
+            <strong>{celebrazione.nome}</strong> a <strong>{celebrazione.squadraNome}</strong>
+            <div className="fk-toast-sub">{celebrazione.crediti} crediti</div>
+          </div>
+        </div>
+      )}
       <header className="fk-header">
         <div className="fk-masthead">
           <h1>{stato.nome || "Asta del Fanta"}</h1>
@@ -890,9 +976,19 @@ export default function AstaRoom() {
                           </span>
                           <strong>{astaLive.giocatore}</strong>
                         </p>
-                        <p className="fk-bid-value">{astaLive.offertaCorrente} crediti</p>
+                        <p
+                          className={inRush ? "fk-bid-value fk-bid-rush" : "fk-bid-value"}
+                          key={astaLive.offertaCorrente}
+                        >
+                          {astaLive.offertaCorrente} crediti
+                        </p>
+                        {inRush && <p className="fk-rush-badge">🔥 Rilanci a raffica!</p>}
                         {secondiRimanenti !== null && (
-                          <p className={secondiRimanenti <= 5 ? "fk-warn" : "fk-hint"}>
+                          <p
+                            className={
+                              secondiRimanenti <= 5 ? "fk-warn fk-countdown-urgent" : "fk-hint"
+                            }
+                          >
                             Chiude tra {secondiRimanenti}s se nessuno rilancia
                           </p>
                         )}

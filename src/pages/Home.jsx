@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase.js";
 import { defaultConfig } from "../lib/model.js";
+import TemaToggle from "../components/TemaToggle.jsx";
 
 // Niente 0/O/1/I per evitare ambiguità quando il codice viene letto ad alta voce
 const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -75,6 +76,9 @@ export default function Home() {
 
   return (
     <div className="home-root">
+      <div className="home-topbar">
+        <TemaToggle />
+      </div>
       <div className="home-inner">
         <span className="home-badge">⚽</span>
         <h1>Asta del Fanta</h1>

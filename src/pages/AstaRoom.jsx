@@ -11,9 +11,11 @@ import {
   creditiResidui,
   postiLiberiTotali,
   trovaGiocatoreAssegnato,
+  creditiVisibili,
 } from "../lib/model.js";
 import { subscribeListone, salvaListone, estraiGiocatoriDaFile, normalizza } from "../lib/listone.js";
 import GiocatoreInput from "../components/GiocatoreInput.jsx";
+import TemaToggle from "../components/TemaToggle.jsx";
 import {
   Trash2,
   AlertTriangle,
@@ -27,7 +29,8 @@ import {
   Upload,
   Crown,
   Copy,
-  Lock,
+  Eye,
+  EyeOff,
   LogOut,
 } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -157,7 +160,6 @@ export default function AstaRoom() {
   const [dispRuolo, setDispRuolo] = useState("TUTTI");
   const [dispQuery, setDispQuery] = useState("");
   const [pannello, setPannello] = useState("ultimi");
-  const [statNascoste, setStatNascoste] = useState(false);
   const [sbloccaImpostazioni, setSbloccaImpostazioni] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [inRush, setInRush] = useState(false);
@@ -811,6 +813,26 @@ export default function AstaRoom() {
     }
   }, [newTeamName, ref, impostaRuoloDispositivo]);
 
+  // Visibilità dei propri crediti verso le altre squadre. Transazionale come
+  // il resto: due dispositivi che scrivono insieme non si sovrascrivono.
+  const cambiaVisibilitaCrediti = useCallback(
+    async (squadraId, visibili) => {
+      try {
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(ref);
+          const dati = snap.data();
+          const nuoveSquadre = dati.squadre.map((s) =>
+            s.id === squadraId ? { ...s, creditiVisibili: visibili } : s
+          );
+          tx.update(ref, { squadre: nuoveSquadre });
+        });
+      } catch (e) {
+        setErrore(e.message || "Non sono riuscito a cambiare la visibilità dei crediti.");
+      }
+    },
+    [ref]
+  );
+
   const copiaCodice = () => {
     try {
       navigator.clipboard.writeText(codice);
@@ -844,6 +866,9 @@ export default function AstaRoom() {
   if (asta_iniziata && deviceRole === null) {
     return (
       <div className="home-root">
+        <div className="home-topbar">
+          <TemaToggle />
+        </div>
         <div className="home-inner">
           <span className="home-badge">⚽</span>
           <h1>{stato.nome || "Asta del Fanta"}</h1>
@@ -973,6 +998,7 @@ export default function AstaRoom() {
           </nav>
 
           <div className="fk-topbar-right">
+            <TemaToggle />
             <button className="fk-code-badge" onClick={copiaCodice} title="Copia il codice">
               <strong>{codice}</strong>
               {copiato ? <Check size={13} /> : <Copy size={13} />}
@@ -1210,34 +1236,23 @@ export default function AstaRoom() {
               const postiLiberiMia = postiLiberiTotali(miaSquadra, config.slot);
               const maxOffertaMia = residui - Math.max(0, postiLiberiMia - 1);
 
-              const statistiche = statNascoste ? (
-                <button className="fk-stat-toggle" onClick={() => setStatNascoste(false)}>
-                  👁️ Mostra i miei numeri
-                </button>
-              ) : (
-                <div className="fk-stats-wrap">
-                  <button
-                    className="fk-stat-toggle fk-stat-toggle-corner"
-                    title="Nascondi questi numeri"
-                    onClick={() => setStatNascoste(true)}
-                  >
-                    <Lock size={12} /> nascondi
-                  </button>
-                  <div className="fk-stats-row">
-                    <div className="fk-stat">
-                      <div className="fk-stat-num" style={{ color: "var(--gold)" }}>{residui}</div>
-                      <div className="fk-stat-lab">crediti</div>
+              // I propri numeri restano sempre a schermo: chi non vuole farli
+              // vedere agli altri usa l'occhio sui crediti nella scheda Squadre.
+              const statistiche = (
+                <div className="fk-stats-row">
+                  <div className="fk-stat">
+                    <div className="fk-stat-num" style={{ color: "var(--gold-ink)" }}>{residui}</div>
+                    <div className="fk-stat-lab">crediti</div>
+                  </div>
+                  <div className="fk-stat">
+                    <div className="fk-stat-num">{postiLiberiMia}</div>
+                    <div className="fk-stat-lab">posti liberi</div>
+                  </div>
+                  <div className="fk-stat">
+                    <div className="fk-stat-num" style={{ color: "var(--accent-ink)" }}>
+                      {Math.max(0, maxOffertaMia)}
                     </div>
-                    <div className="fk-stat">
-                      <div className="fk-stat-num">{postiLiberiMia}</div>
-                      <div className="fk-stat-lab">posti liberi</div>
-                    </div>
-                    <div className="fk-stat">
-                      <div className="fk-stat-num" style={{ color: "var(--accent)" }}>
-                        {Math.max(0, maxOffertaMia)}
-                      </div>
-                      <div className="fk-stat-lab">offerta max</div>
-                    </div>
+                    <div className="fk-stat-lab">offerta max</div>
                   </div>
                 </div>
               );
@@ -1245,7 +1260,7 @@ export default function AstaRoom() {
               /* ---------- nessuna asta in corso ---------- */
               if (!astaLive || !astaLive.attiva) {
                 return (
-                  <div className="fk-card fk-stage">
+                  <div className="fk-card fk-stage fk-stage-chiamata">
                     <p className="fk-live-you">
                       Giochi come <strong>{miaSquadra.nome}</strong>
                     </p>
@@ -1598,6 +1613,7 @@ export default function AstaRoom() {
               const totaleSlot = Object.values(config.slot).reduce((a, b) => a + b, 0);
               const totaleOccupati = s.giocatori.length;
               const mia = s.id === deviceRole;
+              const visibili = creditiVisibili(s);
               const postiLiberiS = postiLiberiTotali(s, config.slot);
               const maxOffertaS = residui - Math.max(0, postiLiberiS - 1);
               return (
@@ -1610,14 +1626,35 @@ export default function AstaRoom() {
                     {mia ? (
                       <span className="fk-credits">
                         <Coins size={14} /> {residui} / {config.budget}
+                        <button
+                          className="fk-credits-eye"
+                          title={
+                            visibili
+                              ? "I tuoi crediti sono visibili alle altre squadre: tocca per nasconderli"
+                              : "I tuoi crediti sono nascosti alle altre squadre: tocca per mostrarli"
+                          }
+                          aria-label={
+                            visibili ? "Nascondi i miei crediti alle altre squadre" : "Mostra i miei crediti alle altre squadre"
+                          }
+                          onClick={() => cambiaVisibilitaCrediti(s.id, !visibili)}
+                        >
+                          {visibili ? <Eye size={13} /> : <EyeOff size={13} />}
+                        </button>
+                      </span>
+                    ) : visibili ? (
+                      <span className="fk-credits">
+                        <Coins size={14} /> {residui} / {config.budget}
                       </span>
                     ) : (
-                      <span className="fk-credits fk-credits-hidden" title="Solo il proprietario vede i suoi crediti residui">
-                        <Lock size={13} /> nascosti
+                      <span
+                        className="fk-credits fk-credits-hidden"
+                        title={`${s.nome} ha scelto di non mostrare i suoi crediti`}
+                      >
+                        <EyeOff size={13} /> nascosti
                       </span>
                     )}
                   </div>
-                  {mia && (
+                  {(mia || visibili) && (
                     <div className="fk-progress">
                       <div
                         className="fk-progress-bar"

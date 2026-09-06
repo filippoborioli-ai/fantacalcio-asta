@@ -15,6 +15,14 @@ export function uid() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+// Ogni squadra decide se mostrare i propri crediti alle altre. Di default sono
+// visibili: si gioca tra amici, e vedere quanto hanno gli altri rende l'asta
+// più divertente. Le squadre create prima di questa opzione non hanno il campo,
+// quindi l'assenza vale "visibili".
+export function creditiVisibili(squadra) {
+  return squadra?.creditiVisibili !== false;
+}
+
 export function occupati(squadra, ruolo) {
   return squadra.giocatori.filter((g) => g.ruolo === ruolo).length;
 }

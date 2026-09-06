@@ -4,25 +4,51 @@
    accenti vivi (arancio protagonista, oro crediti, viola/azzurro ruoli).
    ========================================================= */
 
+/* Due temi, stessi nomi di variabile: "sera d'asta" (scuro) e "giorno di
+   mercato" (chiaro). Il tema si sceglie dall'interruttore in alto; senza
+   scelta esplicita si segue la preferenza del sistema operativo.
+
+   Regola per non rompere il tema chiaro: i token "-ink" sono i colori da
+   usare come TESTO (scuriti sul chiaro, così restano leggibili), mentre
+   --accent/--gold restano i colori pieni per sfondi e bordi. Nel tema
+   scuro i due coincidono. */
 :root {
-  /* fondali — prugna caldo, molto più chiaro del nero */
-  --bg-0: #2B2438;
-  --bg-1: #372C48;
-  --bg-2: #443659;
+  /* fondali — prugna profondo: le card devono staccarsi, non fondersi */
+  --bg-0: #221B2E;
+  --bg-1: #2E2540;
+  --bg-2: #3B2F4F;
+
+  /* aloni luminosi del guscio */
+  --glow-a: rgba(255, 138, 61, 0.22);
+  --glow-b: rgba(255, 201, 77, 0.14);
+  --glow-c: rgba(176, 140, 255, 0.16);
 
   /* superfici */
-  --surface: rgba(255, 255, 255, 0.075);
-  --surface-2: rgba(255, 255, 255, 0.13);
+  --surface: rgba(255, 255, 255, 0.085);
+  --surface-2: rgba(255, 255, 255, 0.145);
+  --control-bg: rgba(255, 255, 255, 0.085);
+  --control-bg-hover: rgba(255, 255, 255, 0.16);
   --surface-solid: #3B2F4D;
-  --line: rgba(255, 255, 255, 0.14);
-  --line-strong: rgba(255, 255, 255, 0.26);
+  --header-bg: rgba(30, 24, 41, 0.86);
+  --line: rgba(255, 255, 255, 0.15);
+  --line-strong: rgba(255, 255, 255, 0.28);
+
+  /* incassi: campi di input, caselle statistiche, righe di elenco */
+  --well: rgba(0, 0, 0, 0.22);
+  --well-2: rgba(0, 0, 0, 0.3);
+  --line-soft: rgba(255, 255, 255, 0.06);
+  --field-disabled: rgba(255, 255, 255, 0.03);
+  --track: rgba(255, 255, 255, 0.09);
+  --scroll-thumb: rgba(255, 255, 255, 0.12);
+  --scroll-thumb-hover: rgba(255, 255, 255, 0.22);
 
   /* testo */
   --text: #FBF4F7;
   --text-dim: #C3B4CE;
   --text-faint: #9184A0;
+  --on-accent: #231A12;
 
-  /* accenti */
+  /* accenti — pieni */
   --accent: #FF8A3D;
   --accent-deep: #F2621F;
   --gold: #FFC94D;
@@ -31,16 +57,74 @@
   --blue: #6FB4FF;
   --violet: #B08CFF;
 
-  /* ruoli */
-  --r-p: #FFC94D;
-  --r-d: #6FB4FF;
-  --r-c: #B08CFF;
-  --r-a: #FF8A3D;
+  /* accenti — come testo */
+  --accent-ink: #FF8A3D;
+  --gold-ink: #FFC94D;
+  --red-ink: #FF9B8A;
+  --warn-ink: #F7DF9B;
+
+  /* velature colorate su superficie */
+  --accent-soft: rgba(255, 138, 61, 0.12);
+  --gold-soft: rgba(255, 201, 77, 0.11);
+  --gold-line: rgba(255, 201, 77, 0.3);
+  --red-soft: rgba(240, 68, 56, 0.1);
+  --red-line: rgba(240, 68, 56, 0.25);
+
+  /* I colori dei ruoli non stanno qui: vivono in lib/model.js (RUOLI[].colore)
+     e arrivano come stile inline sui chip, perché servono anche al JS. */
 
   --radius: 14px;
   --radius-sm: 9px;
   --shadow: 0 18px 50px -24px rgba(0, 0, 0, 0.75);
+  --shadow-pop: 0 22px 60px -18px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.04);
   --glow-green: 0 0 0 1px rgba(255, 138, 61, 0.45), 0 8px 30px -8px rgba(255, 138, 61, 0.5);
+}
+
+/* ---------- tema chiaro: "giorno di mercato", crema calda ---------- */
+:root[data-theme="light"] {
+  --bg-0: #F1EAE2;
+  --bg-1: #FCF8F4;
+  --bg-2: #E7DCD0;
+
+  --glow-a: rgba(255, 138, 61, 0.18);
+  --glow-b: rgba(255, 193, 77, 0.16);
+  --glow-c: rgba(150, 120, 220, 0.1);
+
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-2: #FFFFFF;
+  --control-bg: rgba(60, 40, 30, 0.05);
+  --control-bg-hover: rgba(60, 40, 30, 0.1);
+  --surface-solid: #FFFFFF;
+  --header-bg: rgba(252, 248, 244, 0.88);
+  --line: rgba(60, 40, 30, 0.14);
+  --line-strong: rgba(60, 40, 30, 0.28);
+
+  --well: rgba(60, 40, 30, 0.05);
+  --well-2: rgba(60, 40, 30, 0.09);
+  --line-soft: rgba(60, 40, 30, 0.09);
+  --field-disabled: rgba(60, 40, 30, 0.06);
+  --track: rgba(60, 40, 30, 0.12);
+  --scroll-thumb: rgba(60, 40, 30, 0.2);
+  --scroll-thumb-hover: rgba(60, 40, 30, 0.32);
+
+  --text: #2A2033;
+  --text-dim: #5A5064;
+  --text-faint: #7C7286;
+
+  --accent-ink: #C0500B;
+  --gold-ink: #9A6C0C;
+  --red-ink: #B3261E;
+  --warn-ink: #7A5710;
+
+  --accent-soft: rgba(255, 138, 61, 0.16);
+  --gold-soft: rgba(214, 158, 30, 0.16);
+  --gold-line: rgba(184, 132, 20, 0.4);
+  --red-soft: rgba(214, 60, 46, 0.1);
+  --red-line: rgba(214, 60, 46, 0.28);
+
+  --shadow: 0 16px 40px -22px rgba(70, 45, 30, 0.45);
+  --shadow-pop: 0 22px 55px -20px rgba(70, 45, 30, 0.45), 0 0 0 1px rgba(60, 40, 30, 0.06);
+  --glow-green: 0 0 0 1px rgba(255, 138, 61, 0.5), 0 8px 26px -10px rgba(255, 138, 61, 0.45);
 }
 
 * { box-sizing: border-box; margin: 0; }
@@ -58,12 +142,12 @@ body {
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.12);
+  background: var(--scroll-thumb);
   border-radius: 99px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
-*::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); background-clip: content-box; }
 
 /* ---------- guscio ---------- */
 .fk-root {
@@ -71,9 +155,9 @@ body {
   color: var(--text);
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
   background:
-    radial-gradient(900px 500px at 8% -6%, rgba(255, 138, 61, 0.22), transparent 62%),
-    radial-gradient(760px 460px at 100% 4%, rgba(255, 201, 77, 0.14), transparent 58%),
-    radial-gradient(1000px 700px at 50% 110%, rgba(176, 140, 255, 0.16), transparent 60%),
+    radial-gradient(900px 500px at 8% -6%, var(--glow-a), transparent 62%),
+    radial-gradient(760px 460px at 100% 4%, var(--glow-b), transparent 58%),
+    radial-gradient(1000px 700px at 50% 110%, var(--glow-c), transparent 60%),
     linear-gradient(180deg, var(--bg-1), var(--bg-0));
   padding: 0 0 40px;
   overflow-x: hidden;
@@ -86,7 +170,7 @@ body {
   z-index: 40;
   flex-shrink: 0; /* dentro .fk-root-live (flex column): mai schiacciato sotto
                      la sua altezza naturale, anche quando va su più righe */
-  background: rgba(43, 36, 56, 0.85);
+  background: var(--header-bg);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
@@ -142,7 +226,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: var(--surface);
+  background: var(--control-bg);
   border: 1px solid var(--line);
   border-radius: 99px;
   padding: 7px 13px;
@@ -152,11 +236,11 @@ body {
   font-family: inherit;
   transition: background 0.15s, border-color 0.15s, transform 0.1s;
 }
-.fk-code-badge:hover { background: var(--surface-2); border-color: var(--line-strong); }
+.fk-code-badge:hover { background: var(--control-bg-hover); border-color: var(--line-strong); }
 .fk-code-badge:active { transform: scale(0.96); }
 .fk-code-badge strong {
   letter-spacing: 0.09em;
-  color: var(--gold);
+  color: var(--gold-ink);
   font-family: 'Fraunces', serif;
   font-size: 13.5px;
 }
@@ -175,7 +259,7 @@ body {
   text-decoration: none;
   transition: color 0.15s, background 0.15s;
 }
-.fk-exit:hover { color: var(--red); background: rgba(240, 68, 56, 0.1); }
+.fk-exit:hover { color: var(--red); background: var(--red-soft); }
 
 /* ---------- tabs a pillole ---------- */
 .fk-tabs {
@@ -200,7 +284,7 @@ body {
 .fk-tab:active:not(:disabled) { transform: scale(0.96); }
 .fk-tab:disabled { opacity: 0.3; cursor: not-allowed; }
 .fk-tab-active {
-  color: #231A12;
+  color: var(--on-accent);
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   border-color: transparent;
   box-shadow: 0 6px 18px -8px rgba(255, 138, 61, 0.8);
@@ -248,7 +332,7 @@ body {
   height: 24px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-  color: #231A12;
+  color: var(--on-accent);
   font-family: 'Fraunces', serif;
   font-weight: 700;
   font-size: 12.5px;
@@ -264,7 +348,7 @@ body {
   font-size: 13px;
   font-weight: 600;
   padding: 8px 11px;
-  background: rgba(0,0,0,0.2);
+  background: var(--well);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
 }
@@ -276,15 +360,15 @@ body {
   align-items: center;
   gap: 9px;
   flex-wrap: wrap;
-  background: rgba(245, 197, 66, 0.11);
-  border: 1px solid rgba(245, 197, 66, 0.28);
-  color: #F7DF9B;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  color: var(--warn-ink);
   padding: 11px 14px;
   border-radius: var(--radius-sm);
   font-size: 12.5px;
   margin-bottom: 18px;
 }
-.fk-notice svg { color: var(--gold); flex-shrink: 0; }
+.fk-notice svg { color: var(--gold-ink); flex-shrink: 0; }
 
 .fk-h3 {
   font-family: 'Fraunces', Georgia, serif;
@@ -325,7 +409,7 @@ input, select {
   font-family: inherit;
   font-size: 14px;
   color: var(--text);
-  background: rgba(0, 0, 0, 0.22);
+  background: var(--well);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
@@ -335,10 +419,10 @@ input, select {
 }
 input::placeholder { color: var(--text-faint); }
 input:hover:not(:disabled), select:hover:not(:disabled) { border-color: var(--line-strong); }
-input:disabled, select:disabled { background: rgba(255,255,255,0.03); color: var(--text-faint); cursor: not-allowed; }
+input:disabled, select:disabled { background: var(--field-disabled); color: var(--text-faint); cursor: not-allowed; }
 input:focus, select:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
   box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.16);
 }
 select option { background: var(--surface-solid); color: var(--text); }
@@ -357,7 +441,7 @@ select option { background: var(--surface-solid); color: var(--text); }
 .fk-primary {
   margin-top: 16px;
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-  color: #231A12;
+  color: var(--on-accent);
   border: none;
   border-radius: var(--radius-sm);
   padding: 12px 22px;
@@ -377,7 +461,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   align-items: center;
   justify-content: center;
   gap: 7px;
-  background: var(--surface);
+  background: var(--control-bg);
   border: 1px solid var(--line-strong);
   color: var(--text);
   border-radius: var(--radius-sm);
@@ -388,12 +472,12 @@ select option { background: var(--surface-solid); color: var(--text); }
   cursor: pointer;
   transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
 }
-.fk-secondary:hover:not(:disabled) { background: var(--surface-2); border-color: var(--accent); }
+.fk-secondary:hover:not(:disabled) { background: var(--control-bg-hover); border-color: var(--accent-ink); }
 
 .fk-link-btn {
   background: none;
   border: none;
-  color: var(--accent);
+  color: var(--accent-ink);
   text-decoration: underline;
   text-underline-offset: 3px;
   font-family: inherit;
@@ -402,7 +486,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   cursor: pointer;
   padding: 0;
 }
-.fk-link-btn:hover { color: var(--gold); }
+.fk-link-btn:hover { color: var(--gold-ink); }
 
 .fk-icon-btn {
   background: none;
@@ -414,7 +498,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   border-radius: 6px;
   transition: color 0.15s, background 0.15s;
 }
-.fk-icon-btn:hover { color: var(--accent); background: var(--surface-2); }
+.fk-icon-btn:hover { color: var(--accent-ink); background: var(--control-bg-hover); }
 .fk-remove {
   background: none;
   border: none;
@@ -425,13 +509,13 @@ select option { background: var(--surface-solid); color: var(--text); }
   border-radius: 6px;
   transition: color 0.15s, background 0.15s;
 }
-.fk-remove:hover { color: var(--red); background: rgba(240,68,56,0.12); }
+.fk-remove:hover { color: var(--red); background: var(--red-soft); }
 
 .fk-upload-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: var(--surface);
+  background: var(--control-bg);
   border: 1px dashed var(--line-strong);
   border-radius: var(--radius-sm);
   padding: 11px 18px;
@@ -441,7 +525,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, transform 0.1s;
 }
-.fk-upload-btn:hover { border-color: var(--accent); background: var(--surface-2); color: var(--accent); }
+.fk-upload-btn:hover { border-color: var(--accent-ink); background: var(--control-bg-hover); color: var(--accent-ink); }
 .fk-upload-btn:active { transform: scale(0.98); }
 
 /* ---------- scelte (ruoli, squadre) ---------- */
@@ -451,7 +535,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   gap: 8px;
 }
 .fk-choice {
-  background: var(--surface);
+  background: var(--control-bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 11px 10px;
@@ -464,13 +548,13 @@ select option { background: var(--surface-solid); color: var(--text); }
   line-height: 1.3;
   transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
-.fk-choice:hover:not(:disabled) { border-color: var(--accent); color: var(--text); background: var(--surface-2); }
+.fk-choice:hover:not(:disabled) { border-color: var(--accent-ink); color: var(--text); background: var(--control-bg-hover); }
 .fk-choice:active:not(:disabled) { transform: scale(0.96); }
 .fk-choice:disabled { opacity: 0.3; cursor: not-allowed; }
 .fk-choice-active {
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
   border-color: transparent;
-  color: #231A12;
+  color: var(--on-accent);
   box-shadow: 0 8px 22px -12px rgba(255, 138, 61, 0.9);
 }
 
@@ -478,7 +562,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   display: flex;
   flex-direction: column;
   gap: 9px;
-  background: rgba(0,0,0,0.2);
+  background: var(--well);
   border: 1px dashed var(--line-strong);
   border-radius: var(--radius-sm);
   padding: 14px;
@@ -489,9 +573,9 @@ select option { background: var(--surface-solid); color: var(--text); }
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #FF9B8A;
-  background: rgba(240, 68, 56, 0.1);
-  border: 1px solid rgba(240, 68, 56, 0.25);
+  color: var(--red-ink);
+  background: var(--red-soft);
+  border: 1px solid var(--red-line);
   border-radius: var(--radius-sm);
   padding: 9px 12px;
   font-size: 12.5px;
@@ -508,7 +592,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   height: 22px;
   padding: 0 6px;
   border-radius: 6px;
-  color: #231A12;
+  color: var(--on-accent);
   font-size: 11px;
   font-weight: 800;
   flex-shrink: 0;
@@ -528,7 +612,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   color: var(--text-faint);
   margin-bottom: 14px;
 }
-.fk-live-you strong { color: var(--accent); font-weight: 700; }
+.fk-live-you strong { color: var(--accent-ink); font-weight: 700; }
 
 /* palco: card con alone */
 .fk-stage {
@@ -566,7 +650,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   font-weight: 700;
   line-height: 1;
   margin: 6px 0 2px;
-  color: var(--gold);
+  color: var(--gold-ink);
   text-shadow: 0 0 40px rgba(245, 197, 66, 0.35);
   animation: fk-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -582,7 +666,7 @@ select option { background: var(--surface-solid); color: var(--text); }
 }
 .fk-ring { position: relative; width: 84px; height: 84px; flex-shrink: 0; }
 .fk-ring svg { transform: rotate(-90deg); display: block; }
-.fk-ring-track { stroke: rgba(255,255,255,0.09); }
+.fk-ring-track { stroke: var(--track); }
 .fk-ring-bar { transition: stroke-dashoffset 0.95s linear, stroke 0.3s; }
 .fk-ring-num {
   position: absolute;
@@ -601,9 +685,9 @@ select option { background: var(--surface-solid); color: var(--text); }
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  background: rgba(245, 197, 66, 0.12);
-  border: 1px solid rgba(245, 197, 66, 0.3);
-  color: var(--gold);
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  color: var(--gold-ink);
   border-radius: 99px;
   padding: 7px 15px;
   font-size: 13px;
@@ -611,22 +695,22 @@ select option { background: var(--surface-solid); color: var(--text); }
   margin: 12px 0 0;
 }
 .fk-leader-none {
-  background: var(--surface);
+  background: var(--control-bg);
   border-color: var(--line);
   color: var(--text-faint);
   font-weight: 500;
 }
-.fk-leading { color: var(--gold); font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
+.fk-leading { color: var(--gold-ink); font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
 
 /* statistiche mie */
-.fk-stats-wrap { margin-top: 16px; }
 .fk-stats-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 8px;
+  margin-top: 16px;
 }
 .fk-stat {
-  background: rgba(0,0,0,0.25);
+  background: var(--well);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
@@ -666,18 +750,19 @@ select option { background: var(--surface-solid); color: var(--text); }
   display: flex;
   align-items: center;
   gap: 2px;
-  background: rgba(0, 0, 0, 0.22);
+  background: var(--well);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 0 4px 0 12px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .fk-bid-step:focus-within {
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
   box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.16);
 }
 .fk-bid-step-plus { color: var(--text-faint); font-weight: 700; font-size: 15px; flex-shrink: 0; }
 .fk-bid-step input {
+  font-size: clamp(15px, 2vh, 18px);
   border: none;
   background: none;
   width: 64px;
@@ -708,13 +793,13 @@ select option { background: var(--surface-solid); color: var(--text); }
   align-items: center;
   font-size: 12.5px;
   padding: 8px 12px;
-  background: rgba(0,0,0,0.22);
+  background: var(--well);
   border: 1px solid var(--line);
   border-radius: 8px;
   animation: fk-slide-in 0.3s ease-out;
 }
-.fk-history-list li:first-child { border-color: rgba(245,197,66,0.3); }
-.fk-history-list li span:last-child { font-family: 'Fraunces', serif; font-weight: 700; color: var(--gold); }
+.fk-history-list li:first-child { border-color: var(--gold-line); }
+.fk-history-list li span:last-child { font-family: 'Fraunces', serif; font-weight: 700; color: var(--gold-ink); }
 
 /* =========================================================
    SQUADRE
@@ -750,23 +835,23 @@ select option { background: var(--surface-solid); color: var(--text); }
   gap: 5px;
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--gold);
-  background: rgba(245,197,66,0.1);
-  border: 1px solid rgba(245,197,66,0.22);
+  color: var(--gold-ink);
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
   padding: 4px 10px;
   border-radius: 99px;
   white-space: nowrap;
 }
 .fk-credits-hidden {
   color: var(--text-faint);
-  background: var(--surface);
+  background: var(--control-bg);
   border-color: var(--line);
   font-weight: 500;
 }
 
 .fk-progress {
   height: 6px;
-  background: rgba(0,0,0,0.35);
+  background: var(--well-2);
   border-radius: 99px;
   margin-top: 12px;
   overflow: hidden;
@@ -795,7 +880,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   gap: 10px;
   font-size: 13px;
   padding: 7px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-bottom: 1px solid var(--line-soft);
 }
 .fk-player-list li:last-child { border-bottom: none; }
 .fk-player-right {
@@ -803,7 +888,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   align-items: center;
   gap: 7px;
   font-weight: 700;
-  color: var(--gold);
+  color: var(--gold-ink);
   flex-shrink: 0;
 }
 
@@ -825,12 +910,12 @@ select option { background: var(--surface-solid); color: var(--text); }
 .fk-quickadd-row input[type="number"] { flex: 0 0 70px; padding: 10px 6px; text-align: center; }
 .fk-add-btn {
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-  color: #231A12;
+  color: var(--on-accent);
   border-radius: var(--radius-sm);
   padding: 10px;
   flex-shrink: 0;
 }
-.fk-add-btn:hover { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); filter: brightness(1.1); color: #231A12; }
+.fk-add-btn:hover { background: linear-gradient(135deg, var(--accent), var(--accent-deep)); filter: brightness(1.1); color: var(--on-accent); }
 .fk-edit-input { width: 66px; min-width: 66px; padding: 5px 7px; text-align: center; }
 
 /* =========================================================
@@ -863,19 +948,19 @@ select option { background: var(--surface-solid); color: var(--text); }
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  background: rgba(0,0,0,0.2);
+  background: var(--well);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   font-size: 13px;
   transition: border-color 0.15s, background 0.15s;
 }
-.fk-disp-list li:hover { border-color: var(--line-strong); background: rgba(0,0,0,0.3); }
+.fk-disp-list li:hover { border-color: var(--line-strong); background: var(--well-2); }
 .fk-disp-nome { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fk-disp-club { font-size: 11px; color: var(--text-faint); white-space: nowrap; }
 .fk-disp-qt {
   font-family: 'Fraunces', serif;
   font-weight: 700;
-  color: var(--gold);
+  color: var(--gold-ink);
   min-width: 26px;
   text-align: right;
 }
@@ -905,7 +990,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   to { opacity: 1; transform: translateY(0); }
 }
 @keyframes fk-rush-glow {
-  0%, 100% { color: var(--gold); text-shadow: 0 0 40px rgba(245,197,66,0.35); }
+  0%, 100% { color: var(--gold-ink); text-shadow: 0 0 40px rgba(245,197,66,0.35); }
   50% { color: var(--rust); text-shadow: 0 0 55px rgba(255,107,69,0.7); }
 }
 @keyframes fk-shake {
@@ -956,10 +1041,10 @@ select option { background: var(--surface-solid); color: var(--text); }
   gap: 13px;
   background: linear-gradient(135deg, #52331F, #2E2338);
   border: 1px solid rgba(255, 138, 61,0.35);
-  color: var(--text);
+  color: #FBF4F7; /* i toast restano scuri anche sul tema chiaro: testo fisso */
   border-radius: var(--radius);
   padding: 14px 20px;
-  box-shadow: 0 22px 60px -18px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.04);
+  box-shadow: var(--shadow-pop);
   animation: fk-toast-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1);
   max-width: min(92vw, 440px);
 }
@@ -977,6 +1062,7 @@ select option { background: var(--surface-solid); color: var(--text); }
    HOME
    ========================================================= */
 .home-root {
+  position: relative;
   min-height: 100%;
   display: flex;
   flex-direction: column;
@@ -986,9 +1072,9 @@ select option { background: var(--surface-solid); color: var(--text); }
   color: var(--text);
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
   background:
-    radial-gradient(800px 460px at 15% 0%, rgba(255, 138, 61, 0.26), transparent 60%),
-    radial-gradient(700px 420px at 100% 10%, rgba(255, 201, 77, 0.16), transparent 58%),
-    radial-gradient(900px 600px at 50% 110%, rgba(176, 140, 255, 0.18), transparent 60%),
+    radial-gradient(800px 460px at 15% 0%, var(--glow-a), transparent 60%),
+    radial-gradient(700px 420px at 100% 10%, var(--glow-b), transparent 58%),
+    radial-gradient(900px 600px at 50% 110%, var(--glow-c), transparent 60%),
     linear-gradient(180deg, var(--bg-1), var(--bg-0));
 }
 .home-inner { width: 100%; max-width: 430px; }
@@ -1010,7 +1096,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   text-align: center;
   margin: 0;
   letter-spacing: -0.02em;
-  background: linear-gradient(100deg, #fff 20%, var(--accent) 115%);
+  background: linear-gradient(100deg, var(--text) 20%, var(--accent-ink) 115%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -1053,23 +1139,23 @@ select option { background: var(--surface-solid); color: var(--text); }
 }
 .home-primary {
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-  color: #231A12;
+  color: var(--on-accent);
   border: none;
   box-shadow: 0 10px 26px -12px rgba(255, 138, 61, 0.9);
 }
 .home-primary:hover:not(:disabled) { filter: brightness(1.08); }
 .home-secondary {
-  background: var(--surface);
+  background: var(--control-bg);
   color: var(--text);
   border: 1px solid var(--line-strong);
 }
-.home-secondary:hover:not(:disabled) { background: var(--surface-2); border-color: var(--accent); }
+.home-secondary:hover:not(:disabled) { background: var(--control-bg-hover); border-color: var(--accent-ink); }
 .home-primary:active:not(:disabled), .home-secondary:active:not(:disabled) { transform: scale(0.97); }
 .home-primary:disabled, .home-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
 .home-error {
-  color: #FF9B8A;
-  background: rgba(240, 68, 56, 0.1);
-  border: 1px solid rgba(240, 68, 56, 0.25);
+  color: var(--red-ink);
+  background: var(--red-soft);
+  border: 1px solid var(--red-line);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
   font-size: 12.5px;
@@ -1094,10 +1180,10 @@ select option { background: var(--surface-solid); color: var(--text); }
   top: calc(100% + 5px);
   left: 0;
   right: 0;
-  background: #3B2F4D;
+  background: var(--surface-solid);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
-  box-shadow: 0 20px 50px -16px rgba(0,0,0,0.9);
+  box-shadow: var(--shadow-pop);
   max-height: 250px;
   overflow-y: auto;
   list-style: none;
@@ -1115,7 +1201,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   font-size: 13px;
   transition: background 0.12s;
 }
-.gi-suggerimenti li:hover { background: var(--surface-2); }
+.gi-suggerimenti li:hover { background: var(--control-bg-hover); }
 .gi-nome { font-weight: 600; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gi-squadra { font-size: 11px; color: var(--text-faint); white-space: nowrap; }
 
@@ -1200,7 +1286,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   background: linear-gradient(135deg, #3C3448, #2A2438);
   border-color: var(--line-strong);
 }
-.fk-toast-passato .fk-toast-sub { color: var(--text-faint); }
+.fk-toast-passato .fk-toast-sub { color: #B6A9C2; }
 
 .fk-toast-superato {
   background: linear-gradient(135deg, #5C2135, #33203A);
@@ -1232,13 +1318,13 @@ select option { background: var(--surface-solid); color: var(--text); }
   color: var(--text-dim);
   margin-bottom: 7px;
 }
-.fk-lancio-label strong { color: var(--accent); }
+.fk-lancio-label strong { color: var(--accent-ink); }
 .fk-lancio-bar {
   display: flex;
   gap: 6px;
 }
 .fk-lancio-btn {
-  background: var(--surface);
+  background: var(--control-bg);
   border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 17px;
@@ -1247,7 +1333,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   cursor: pointer;
   transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
 }
-.fk-lancio-btn:hover { background: var(--surface-2); border-color: var(--line-strong); transform: translateY(-2px) scale(1.08); }
+.fk-lancio-btn:hover { background: var(--control-bg-hover); border-color: var(--line-strong); transform: translateY(-2px) scale(1.08); }
 .fk-lancio-btn:active { transform: scale(0.9) rotate(-8deg); }
 
 /* oggetto che vola da un capo all'altro dello schermo. La posizione anima sul
@@ -1284,7 +1370,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   margin-top: 2px;
   font-size: 11px;
   font-weight: 700;
-  color: var(--text);
+  color: #FBF4F7; /* pillola scura sopra la pagina in entrambi i temi */
   background: rgba(0,0,0,0.55);
   padding: 3px 9px;
   border-radius: 99px;
@@ -1351,16 +1437,16 @@ select option { background: var(--surface-solid); color: var(--text); }
   padding: clamp(8px, 1.8vh, 22px) clamp(16px, 4vw, 40px);
 }
 .fk-stage > * { width: 100%; max-width: 480px; }
-.fk-live-grid .fk-live-you { margin-bottom: clamp(6px, 1.5vh, 14px); font-size: 13px; }
-.fk-live-grid .fk-live-player { font-size: clamp(22px, 4vh, 34px); margin: 2px 0; justify-content: center; }
-.fk-live-grid .fk-live-club { margin-bottom: 2px; font-size: 12.5px; }
+.fk-live-grid .fk-live-you { margin-bottom: clamp(6px, 1.5vh, 14px); font-size: clamp(13px, 1.7vh, 15px); }
+.fk-live-grid .fk-live-player { font-size: clamp(22px, 4.4vh, 42px); margin: 2px 0; justify-content: center; }
+.fk-live-grid .fk-live-club { margin-bottom: 2px; font-size: clamp(12.5px, 1.6vh, 15px); }
 
 /* il grande anello-countdown col valore dentro: il vero centro della scena */
 .fk-bighero {
   position: relative;
-  width: clamp(140px, 30vh, 280px);
-  height: clamp(140px, 30vh, 280px);
-  margin: clamp(6px, 1.4vh, 16px) auto;
+  width: clamp(150px, 33vh, 330px);
+  height: clamp(150px, 33vh, 330px);
+  margin: clamp(6px, 1.6vh, 20px) auto;
   flex-shrink: 0;
 }
 .fk-bighero-svg { width: 100%; height: 100%; display: block; }
@@ -1373,7 +1459,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   justify-content: center;
 }
 .fk-bighero .fk-bid-value {
-  font-size: clamp(38px, 11vh, 88px);
+  font-size: clamp(38px, 12vh, 104px);
   line-height: 1;
   margin: 0;
 }
@@ -1389,20 +1475,45 @@ select option { background: var(--surface-solid); color: var(--text); }
 }
 .fk-hero-timer.fk-countdown-urgent { color: var(--red) !important; }
 
-.fk-live-grid .fk-leader { margin: 0 0 clamp(4px, 1vh, 10px); padding: 5px 14px; font-size: 12.5px; }
+.fk-live-grid .fk-leader { margin: 0 0 clamp(4px, 1vh, 10px); padding: clamp(5px, 0.9vh, 9px) 16px; font-size: clamp(12.5px, 1.6vh, 15px); }
 .fk-live-grid .fk-bid-row { margin-top: clamp(6px, 1.3vh, 14px); }
-.fk-live-grid .fk-bid-btn { font-size: clamp(14px, 2vh, 18px); padding: clamp(10px, 1.8vh, 15px) clamp(20px, 4vw, 34px); }
-.fk-live-grid .fk-stats-wrap { margin-top: clamp(6px, 1.3vh, 12px); }
-.fk-live-grid .fk-stats-row { gap: 6px; }
-.fk-live-grid .fk-stat { padding: clamp(4px, 0.8vh, 8px) 8px; }
-.fk-live-grid .fk-stat-num { font-size: clamp(14px, 1.8vh, 18px); }
-.fk-live-grid .fk-stat-lab { font-size: 9px; margin-top: 1px; }
+.fk-live-grid .fk-bid-btn { font-size: clamp(14px, 2.2vh, 21px); padding: clamp(10px, 2vh, 18px) clamp(20px, 4vw, 38px); }
+.fk-live-grid .fk-stats-row { margin-top: clamp(6px, 1.3vh, 12px); gap: 6px; }
+.fk-live-grid .fk-stat { padding: clamp(4px, 1vh, 11px) 8px; }
+.fk-live-grid .fk-stat-num { font-size: clamp(14px, 2vh, 22px); }
+.fk-live-grid .fk-stat-lab { font-size: clamp(9px, 1.1vh, 11px); margin-top: 1px; }
 .fk-chiudi-row { margin-top: clamp(6px, 1.3vh, 12px); padding-top: clamp(6px, 1.3vh, 12px); border-top: 1px dashed var(--line); }
 .fk-chiudi-row .fk-secondary { font-size: 11.5px; padding: 7px 11px; }
 
-/* stato "chiama il prossimo giocatore": stessa logica, campi un filo più grandi */
-.fk-stage .fk-field-row { max-width: 520px; }
-.fk-stage input { font-size: 15px; padding: 11px 13px; }
+/* Stato "chiama il prossimo giocatore": è una schermata quasi vuota, quindi
+   qui il contenuto può respirare e crescere con l'altezza dello schermo,
+   invece di restare un francobollo in mezzo alla card. */
+.fk-stage .fk-field-row { max-width: min(640px, 100%); gap: clamp(14px, 2.2vh, 22px); }
+.fk-stage input { font-size: clamp(15px, 2vh, 18px); padding: clamp(11px, 1.7vh, 15px) 14px; }
+.fk-stage-chiamata > * { max-width: min(640px, 100%); }
+.fk-stage-chiamata .fk-field-row label,
+.fk-stage-chiamata .fk-label { font-size: clamp(12px, 1.6vh, 14px); }
+.fk-stage-chiamata .fk-section-label {
+  font-size: clamp(11px, 1.5vh, 13px);
+  margin-bottom: clamp(10px, 1.8vh, 16px);
+}
+.fk-stage-chiamata .fk-live-you { font-size: clamp(13px, 1.8vh, 16px); }
+.fk-stage-chiamata .fk-block { margin-bottom: clamp(12px, 2vh, 20px); }
+.fk-stage-chiamata .fk-primary {
+  font-size: clamp(15px, 2.1vh, 19px);
+  padding: clamp(13px, 2vh, 18px) 26px;
+  width: 100%;
+  border-radius: 99px;
+  margin-top: clamp(16px, 3vh, 34px);
+}
+.fk-stage-chiamata .fk-live-you { margin-bottom: clamp(8px, 2.4vh, 26px); }
+.fk-stage-chiamata .fk-hint { margin-top: clamp(8px, 1.5vh, 14px); }
+.fk-stage-chiamata .fk-stats-row { margin-top: clamp(10px, 2.6vh, 28px); }
+.fk-stage-chiamata .fk-hint { font-size: clamp(12px, 1.6vh, 14px); }
+.fk-live-grid .fk-stage-chiamata .fk-choice {
+  padding: clamp(10px, 1.7vh, 15px) 6px;
+  font-size: clamp(12px, 1.7vh, 15px);
+}
 
 /* pannello cronaca */
 .fk-panel {
@@ -1419,7 +1530,7 @@ select option { background: var(--surface-solid); color: var(--text); }
 }
 .fk-panel-tab {
   flex: 1;
-  background: var(--surface);
+  background: var(--control-bg);
   border: 1px solid transparent;
   border-radius: 99px;
   padding: 7px 6px;
@@ -1431,11 +1542,11 @@ select option { background: var(--surface-solid); color: var(--text); }
   white-space: nowrap;
   transition: background 0.15s, color 0.15s, transform 0.1s;
 }
-.fk-panel-tab:hover { color: var(--text); background: var(--surface-2); }
+.fk-panel-tab:hover { color: var(--text); background: var(--control-bg-hover); }
 .fk-panel-tab:active { transform: scale(0.96); }
 .fk-panel-tab-on {
   background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-  color: #231A12;
+  color: var(--on-accent);
 }
 .fk-panel-body { flex: 1; min-height: 0; overflow-y: auto; }
 
@@ -1445,7 +1556,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: rgba(0,0,0,0.18);
+  background: var(--well);
   border: 1px solid var(--line);
   border-radius: 9px;
   font-size: 12.5px;
@@ -1472,7 +1583,7 @@ select option { background: var(--surface-solid); color: var(--text); }
 .fk-panel-val {
   font-family: 'Fraunces', serif;
   font-weight: 700;
-  color: var(--gold);
+  color: var(--gold-ink);
   flex-shrink: 0;
 }
 
@@ -1513,30 +1624,59 @@ select option { background: var(--surface-solid); color: var(--text); }
 .fk-live-grid .fk-choice-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .fk-live-grid .fk-choice { padding: 9px 4px; font-size: 12px; }
 
-/* pulsante mostra/nascondi i propri numeri sul palco */
-.fk-stat-toggle {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 99px;
-  color: var(--text-faint);
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 6px 12px;
-  cursor: pointer;
+/* ---------- interruttore tema chiaro/scuro ---------- */
+.fk-tema-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 99px;
+  background: var(--control-bg);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s, border-color 0.15s, transform 0.15s;
 }
-.fk-stat-toggle:hover { color: var(--text); border-color: var(--line-strong); background: var(--surface-2); }
-/* "nascondi" sta sopra le tre caselle, sul lato destro: elemento normale nel
-   flusso (non più posizionato assoluto), così non si sovrappone mai al testo
-   sopra di lui, qualunque sia la sua altezza. */
-.fk-stats-wrap { display: flex; flex-direction: column; }
-.fk-stat-toggle-corner {
-  align-self: flex-end;
-  margin-bottom: 6px;
-  padding: 3px 9px;
-  font-size: 10px;
+.fk-tema-btn:hover { color: var(--accent-ink); border-color: var(--line-strong); background: var(--control-bg-hover); }
+.fk-tema-btn:active { transform: scale(0.92) rotate(-12deg); }
+
+.home-topbar {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 5;
 }
+
+/* occhio accanto ai crediti: decide se le altre squadre vedono i tuoi */
+.fk-credits-eye {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 2px;
+  margin-left: 2px;
+  border-radius: 6px;
+  color: inherit;
+  opacity: 0.75;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+.fk-credits-eye:hover { opacity: 1; background: var(--gold-soft); }
+
+
+/* ---------- rifiniture del tema chiaro ----------
+   L'alone dorato dietro il numero è nato per il fondo scuro: sulla crema
+   sporca invece di illuminare, quindi qui va spento e il numero si scurisce
+   per restare leggibile. */
+:root[data-theme="light"] .fk-bid-value {
+  color: #B3690A;
+  text-shadow: none;
+}
+:root[data-theme="light"] .fk-stage::before { opacity: 0.55; }
+:root[data-theme="light"] .fk-card,
+:root[data-theme="light"] .home-card { backdrop-filter: blur(6px); }
+:root[data-theme="light"] .fk-bid-btn:not(:disabled) { animation: none; }
+:root[data-theme="light"] .fk-bid-btn:not(:disabled):hover { filter: brightness(1.04); }

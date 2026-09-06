@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
-import { doc, onSnapshot, updateDoc, runTransaction } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc, runTransaction, increment } from "firebase/firestore";
 import { db } from "../firebase.js";
 import {
   RUOLI,
@@ -19,6 +19,13 @@ import TemaToggle from "../components/TemaToggle.jsx";
 import AudioToggle from "../components/AudioToggle.jsx";
 import SlotChiamata from "../components/SlotChiamata.jsx";
 import SlotScelta from "../components/SlotScelta.jsx";
+import Consigliere from "../components/Consigliere.jsx";
+
+// Indirizzo del centralino che custodisce la chiave OpenAI (vedi
+// worker/LEGGIMI.md). Qui c'è solo un URL pubblico: la chiave non passa mai
+// da questa parte. Se non è configurato, il consigliere resta spento.
+const CONSIGLIERE_URL = import.meta.env.VITE_CONSIGLIERE_URL || "";
+const MAX_DOMANDE_CONSIGLIERE = 20;
 import Premiazione from "../components/Premiazione.jsx";
 import { suona } from "../lib/suoni.js";
 import {
@@ -346,6 +353,66 @@ export default function AstaRoom() {
   const chiudiSorteggio = useCallback(async () => {
     await updateDoc(ref, { sorteggio: null });
   }, [ref]);
+
+  // Quante domande ha già fatto la mia squadra al consigliere. Il conto sta sul
+  // documento condiviso così vale su tutti i dispositivi della stessa squadra.
+  const domandeFatte = (stato?.domandeConsigliere || {})[deviceRole] || 0;
+
+  const registraDomanda = useCallback(async () => {
+    if (!deviceRole) return;
+    try {
+      await updateDoc(ref, { [`domandeConsigliere.${deviceRole}`]: increment(1) });
+    } catch (e) {
+      // se il conteggio non passa, pazienza: non deve impedire la domanda
+    }
+  }, [ref, deviceRole]);
+
+  // La fotografia dell'asta che accompagna ogni domanda al consigliere. È
+  // questa la parte che rende utile la risposta: sui numeri della serata il
+  // modello ragiona bene, mentre su forma e infortuni aggiornati non sa nulla.
+  const contestoConsigliere = useMemo(() => {
+    if (!asta_iniziata || !squadre) return "";
+    const mia = squadre.find((s) => s.id === deviceRole);
+    const righe = [];
+
+    if (mia) {
+      const residui = creditiResidui(mia, config.budget);
+      const liberi = postiLiberiTotali(mia, config.slot);
+      righe.push(`La mia squadra: ${mia.nome}`);
+      righe.push(`Crediti residui: ${residui} su ${config.budget}`);
+      righe.push(`Posti ancora liberi in rosa: ${liberi}`);
+      righe.push(
+        `Offerta massima sostenibile ora: ${Math.max(0, residui - Math.max(0, liberi - 1))} (devo lasciare 1 credito per ogni altro posto)`
+      );
+      righe.push(
+        `Reparti: ${RUOLI.map((r) => `${r.label} ${occupati(mia, r.key)}/${config.slot[r.key]}`).join(", ")}`
+      );
+    }
+
+    if (astaLive?.attiva) {
+      const inListone = listone.find(
+        (g) => normalizza(g.nome) === normalizza(astaLive.giocatore)
+      );
+      righe.push(
+        `\nAll'asta in questo momento: ${astaLive.giocatore} (${
+          RUOLI.find((r) => r.key === astaLive.ruolo)?.label || astaLive.ruolo
+        })${inListone ? `, ${inListone.squadra}, quotazione di listino ${inListone.quotazione}` : ""}`
+      );
+      righe.push(
+        `Offerta corrente: ${astaLive.offertaCorrente} ${
+          astaLive.offertaCorrente === 1 ? "credito" : "crediti"
+        }${astaLive.squadraOfferenteNome ? ` (in testa: ${astaLive.squadraOfferenteNome})` : ""}`
+      );
+    }
+
+    const ultimi = (stato?.storicoAcquisti || []).slice(-8).reverse();
+    if (ultimi.length) {
+      righe.push("\nUltimi acquisti della serata (prezzi reali pagati stasera):");
+      ultimi.forEach((a) => righe.push(`- ${a.nome} (${a.ruolo}) a ${a.squadraNome}: ${a.crediti}`));
+    }
+
+    return righe.join("\n");
+  }, [asta_iniziata, squadre, deviceRole, config, astaLive, listone, stato?.storicoAcquisti]);
 
   // "Chi ha preso X?": cerca tra i giocatori già in rosa, in tutte le squadre.
   // Ordinati per prezzo, così se ci sono più omonimi si distinguono subito.
@@ -1370,6 +1437,19 @@ export default function AstaRoom() {
           onChiudi={() => setPremiAperti(false)}
         />
       )}
+      {/* Il consigliere compare solo se il centralino è configurato: senza
+          indirizzo non c'è modo di fare domande, e mostrare una vignetta che
+          non può rispondere sarebbe peggio che non mostrarla. */}
+      {CONSIGLIERE_URL && asta_iniziata && deviceRole && squadre?.some((s) => s.id === deviceRole) && (
+        <Consigliere
+          endpoint={CONSIGLIERE_URL}
+          contesto={contestoConsigliere}
+          domandeFatte={domandeFatte}
+          maxDomande={MAX_DOMANDE_CONSIGLIERE}
+          onDomandaFatta={registraDomanda}
+        />
+      )}
+
       {/* La scelta del reparto resta locale a chi lancia; i rulli invece li
           vedono tutti, perché il sorteggio sta sul documento condiviso. */}
       {slotAperta && !sorteggio && (

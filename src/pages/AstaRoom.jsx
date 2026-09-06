@@ -666,6 +666,9 @@ export default function AstaRoom() {
         `${nome} è già in rosa a ${giaAssegnato.squadraNome} (${giaAssegnato.giocatore.crediti} crediti).`
       );
     }
+    // Chi apre l'asta apre anche l'offerta: se nessuno rilancia, il
+    // giocatore va a lui al prezzo di partenza — come in un'asta vera, non
+    // resta "senza offerte" solo perché nessun altro si è fatto vivo.
     const chiamante = (squadre || []).find((s) => s.id === deviceRole);
     await updateDoc(ref, {
       astaLive: {
@@ -674,8 +677,8 @@ export default function AstaRoom() {
         giocatore: nome,
         ruolo: liveForm.ruolo,
         offertaCorrente: base,
-        squadraOfferenteId: null,
-        squadraOfferenteNome: null,
+        squadraOfferenteId: chiamante?.id || null,
+        squadraOfferenteNome: chiamante?.nome || null,
         chiamataDaId: chiamante?.id || null,
         chiamataDaNome: chiamante?.nome || null,
         storico: [],

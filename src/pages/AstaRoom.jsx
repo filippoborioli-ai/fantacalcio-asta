@@ -37,8 +37,8 @@ import confetti from "canvas-confetti";
 // grande e dorata per i top player (quotazione alta nel listone).
 function spara(top) {
   const colori = top
-    ? ["#F5C542", "#F3DFA0", "#FFFFFF"]
-    : ["#35D07F", "#4EA8DE", "#F5C542"];
+    ? ["#FFC94D", "#FFE3A3", "#FFFFFF"]
+    : ["#FF8A3D", "#B08CFF", "#FFC94D"];
   const base = { colors: colori, ticks: 420, gravity: 0.75, scalar: 1.1 };
   confetti({
     ...base,
@@ -156,6 +156,7 @@ export default function AstaRoom() {
   const [secondiRimanenti, setSecondiRimanenti] = useState(null);
   const [dispRuolo, setDispRuolo] = useState("TUTTI");
   const [dispQuery, setDispQuery] = useState("");
+  const [pannello, setPannello] = useState("ultimi");
   const [sbloccaImpostazioni, setSbloccaImpostazioni] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [inRush, setInRush] = useState(false);
@@ -261,6 +262,27 @@ export default function AstaRoom() {
       .filter((g) => !q || normalizza(g.nome).includes(q))
       .sort((a, b) => b.quotazione - a.quotazione || a.nome.localeCompare(b.nome));
   }, [listone, squadre, dispRuolo, dispQuery]);
+
+  // Dati del pannello laterale dell'asta live.
+  const ultimiAcquisti = useMemo(
+    () => (stato?.storicoAcquisti || []).slice().reverse(),
+    [stato?.storicoAcquisti]
+  );
+
+  const topAcquisti = useMemo(() => {
+    const tutti = [];
+    (squadre || []).forEach((s) =>
+      s.giocatori.forEach((g) => tutti.push({ ...g, squadraNome: s.nome }))
+    );
+    return tutti.sort((a, b) => b.crediti - a.crediti).slice(0, 20);
+  }, [squadre]);
+
+  const classificaRilanci = useMemo(() => {
+    const conteggi = stato?.rilanci || {};
+    return (squadre || [])
+      .map((s) => ({ id: s.id, nome: s.nome, rilanci: conteggi[s.id] || 0 }))
+      .sort((a, b) => b.rilanci - a.rilanci);
+  }, [squadre, stato?.rilanci]);
 
   // Festeggiamento: appena un giocatore viene assegnato (da qualunque
   // dispositivo), tutti quelli connessi lo vedono e partono i fuochi
@@ -483,7 +505,21 @@ export default function AstaRoom() {
           const nuoveSquadre = dati.squadre.map((s) =>
             s.id === squadra.id ? { ...s, giocatori: [...s.giocatori, nuovoGiocatore] } : s
           );
-          tx.update(ref, { squadre: nuoveSquadre });
+          // Storico globale degli acquisti: serve al pannello "ultimi acquisti"
+          // (l'ordine dentro le singole rose non dice chi è arrivato prima).
+          const storico = [
+            ...(dati.storicoAcquisti || []),
+            {
+              giocatoreId: nuovoGiocatore.id,
+              nome,
+              ruolo,
+              crediti,
+              squadraId: squadra.id,
+              squadraNome: squadra.nome,
+              ts: Date.now(),
+            },
+          ].slice(-60);
+          tx.update(ref, { squadre: nuoveSquadre, storicoAcquisti: storico });
         });
         return null;
       } catch (e) {
@@ -569,7 +605,10 @@ export default function AstaRoom() {
               ? { ...s, giocatori: s.giocatori.filter((g) => g.id !== giocatoreId) }
               : s
           );
-          tx.update(ref, { squadre: nuoveSquadre });
+          const storico = (dati.storicoAcquisti || []).filter(
+            (a) => a.giocatoreId !== giocatoreId
+          );
+          tx.update(ref, { squadre: nuoveSquadre, storicoAcquisti: storico });
         });
       } catch (e) {
         setErrore(e.message || "Errore nella rimozione.");
@@ -704,7 +743,11 @@ export default function AstaRoom() {
               { squadraNome: squadra.nome, valore, ts: Date.now() },
             ].slice(-20),
           };
-          tx.update(ref, { astaLive: nuovoLive });
+          // Contatore rilanci per squadra: alimenta la classifica "più
+          // fastidioso" (chi rilancia di più durante tutta l'asta).
+          const rilanci = { ...(dati.rilanci || {}) };
+          rilanci[squadra.id] = (rilanci[squadra.id] || 0) + 1;
+          tx.update(ref, { astaLive: nuovoLive, rilanci });
         });
         setBidValue("");
       } catch (e) {
@@ -846,12 +889,24 @@ export default function AstaRoom() {
   }
 
   return (
-    <div className={colpito ? "fk-root fk-root-colpito" : "fk-root"}>
+    <div
+      className={[
+        "fk-root",
+        tab === "live" ? "fk-root-live" : "",
+        colpito ? "fk-root-colpito" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
       {lanci.map((l) => (
         <div key={l.localId} className="fk-lancio-fly">
           <span className="fk-lancio-fly-emoji">{l.emoji}</span>
           <span className="fk-lancio-fly-caption">
-            {l.daNome} → {l.aId === deviceRole ? "te" : l.aNome}
+            {l.aId === deviceRole
+              ? `${l.daNome} l'ha lanciato a TE!`
+              : l.daId === deviceRole
+              ? `Hai colpito ${l.aNome}!`
+              : `${l.daNome} → ${l.aNome}`}
           </span>
         </div>
       ))}
@@ -927,7 +982,7 @@ export default function AstaRoom() {
         </nav>
       </header>
 
-      <main className="fk-main">
+      <main className={tab === "live" ? "fk-main fk-main-live" : "fk-main"}>
         {tab === "setup" && (
           <section className="fk-card fk-setup">
             {asta_iniziata && !sbloccaImpostazioni && (
@@ -1072,7 +1127,7 @@ export default function AstaRoom() {
         )}
 
         {tab === "live" && asta_iniziata && (
-          <section className="fk-live-wrap">
+          <section className="fk-live-grid">
             {(() => {
               const miaSquadra = squadre.find((s) => s.id === deviceRole);
               if (!miaSquadra) {
@@ -1090,92 +1145,95 @@ export default function AstaRoom() {
               const postiLiberiMia = postiLiberiTotali(miaSquadra, config.slot);
               const maxOffertaMia = residui - Math.max(0, postiLiberiMia - 1);
 
-              /* ---------- nessuna asta in corso: si lancia un giocatore ---------- */
+              const statistiche = (
+                <div className="fk-stats-row">
+                  <div className="fk-stat">
+                    <div className="fk-stat-num" style={{ color: "var(--gold)" }}>{residui}</div>
+                    <div className="fk-stat-lab">crediti</div>
+                  </div>
+                  <div className="fk-stat">
+                    <div className="fk-stat-num">{postiLiberiMia}</div>
+                    <div className="fk-stat-lab">posti liberi</div>
+                  </div>
+                  <div className="fk-stat">
+                    <div className="fk-stat-num" style={{ color: "var(--accent)" }}>
+                      {Math.max(0, maxOffertaMia)}
+                    </div>
+                    <div className="fk-stat-lab">offerta max</div>
+                  </div>
+                </div>
+              );
+
+              /* ---------- nessuna asta in corso ---------- */
               if (!astaLive || !astaLive.attiva) {
                 return (
-                  <>
+                  <div className="fk-card fk-stage">
                     <p className="fk-live-you">
                       Giochi come <strong>{miaSquadra.nome}</strong>
                     </p>
-                    <div className="fk-card">
-                      <span className="fk-section-label">Chiama il prossimo giocatore</span>
-                      <div className="fk-field-row">
-                        <label>
-                          Nome giocatore
-                          <GiocatoreInput
-                            value={liveForm.nome}
-                            placeholder="es. Lautaro Martinez"
-                            listone={listone}
-                            onChangeValue={(v) => setLiveForm((f) => ({ ...f, nome: v }))}
-                            onPick={(g) => setLiveForm((f) => ({ ...f, nome: g.nome, ruolo: g.ruolo }))}
-                          />
-                        </label>
-                        <label>
-                          Offerta di partenza
-                          <input
-                            type="number"
-                            min={1}
-                            value={liveForm.offertaBase}
-                            onChange={(e) => setLiveForm((f) => ({ ...f, offertaBase: e.target.value }))}
-                          />
-                        </label>
-                      </div>
-                      <div className="fk-block" style={{ marginTop: 14 }}>
-                        <span className="fk-label">Ruolo</span>
-                        <div className="fk-choice-grid">
-                          {RUOLI.map((r) => {
-                            const attivo = liveForm.ruolo === r.key;
-                            return (
-                              <button
-                                key={r.key}
-                                type="button"
-                                className={attivo ? "fk-choice fk-choice-active" : "fk-choice"}
-                                style={
-                                  attivo
-                                    ? { background: r.colore, borderColor: r.colore, color: "#06120C" }
-                                    : undefined
-                                }
-                                onClick={() => setLiveForm((f) => ({ ...f, ruolo: r.key }))}
-                              >
-                                {r.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                      {liveErr && (
-                        <p className="fk-error">
-                          <AlertTriangle size={14} /> {liveErr}
-                        </p>
-                      )}
-                      <button className="fk-primary" onClick={avviaAstaLive}>
-                        Avvia asta
-                      </button>
-                      <p className="fk-hint">
-                        Chiunque può chiamare un giocatore. Countdown {config.countdownSec || 20}s, si
-                        azzera a ogni rilancio: allo scadere il giocatore va a chi è in testa.
-                      </p>
-
-                      <div className="fk-stats-row">
-                        <div className="fk-stat">
-                          <div className="fk-stat-num" style={{ color: "var(--gold)" }}>{residui}</div>
-                          <div className="fk-stat-lab">crediti</div>
-                        </div>
-                        <div className="fk-stat">
-                          <div className="fk-stat-num">{postiLiberiMia}</div>
-                          <div className="fk-stat-lab">posti liberi</div>
-                        </div>
-                        <div className="fk-stat">
-                          <div className="fk-stat-num" style={{ color: "var(--green)" }}>{Math.max(0, maxOffertaMia)}</div>
-                          <div className="fk-stat-lab">offerta max</div>
-                        </div>
+                    <span className="fk-section-label">Chiama il prossimo giocatore</span>
+                    <div className="fk-field-row">
+                      <label>
+                        Nome giocatore
+                        <GiocatoreInput
+                          value={liveForm.nome}
+                          placeholder="es. Lautaro Martinez"
+                          listone={listone}
+                          onChangeValue={(v) => setLiveForm((f) => ({ ...f, nome: v }))}
+                          onPick={(g) => setLiveForm((f) => ({ ...f, nome: g.nome, ruolo: g.ruolo }))}
+                        />
+                      </label>
+                      <label>
+                        Offerta di partenza
+                        <input
+                          type="number"
+                          min={1}
+                          value={liveForm.offertaBase}
+                          onChange={(e) => setLiveForm((f) => ({ ...f, offertaBase: e.target.value }))}
+                        />
+                      </label>
+                    </div>
+                    <div className="fk-block" style={{ marginTop: 12 }}>
+                      <span className="fk-label">Ruolo</span>
+                      <div className="fk-choice-grid">
+                        {RUOLI.map((r) => {
+                          const attivo = liveForm.ruolo === r.key;
+                          return (
+                            <button
+                              key={r.key}
+                              type="button"
+                              className={attivo ? "fk-choice fk-choice-active" : "fk-choice"}
+                              style={
+                                attivo
+                                  ? { background: r.colore, borderColor: r.colore, color: "#231A12" }
+                                  : undefined
+                              }
+                              onClick={() => setLiveForm((f) => ({ ...f, ruolo: r.key }))}
+                            >
+                              {r.label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-                  </>
+                    {liveErr && (
+                      <p className="fk-error">
+                        <AlertTriangle size={14} /> {liveErr}
+                      </p>
+                    )}
+                    <button className="fk-primary" onClick={avviaAstaLive}>
+                      Avvia asta
+                    </button>
+                    <p className="fk-hint">
+                      Countdown {config.countdownSec || 20}s, si azzera a ogni rilancio: allo scadere
+                      il giocatore va a chi è in testa.
+                    </p>
+                    {statistiche}
+                  </div>
                 );
               }
 
-              /* ---------- asta in corso: il palcoscenico ---------- */
+              /* ---------- asta in corso ---------- */
               const ruoloInfo = RUOLI.find((r) => r.key === astaLive.ruolo);
               const sonoIoInTesta = astaLive.squadraOfferenteId === miaSquadra.id;
               const ruoloPienoLive =
@@ -1186,213 +1244,265 @@ export default function AstaRoom() {
                 (g) => normalizza(g.nome) === normalizza(astaLive.giocatore)
               );
               const durata = astaLive.durataSecondi || config.countdownSec || 20;
-              const frazione = secondiRimanenti === null ? 1 : Math.max(0, Math.min(1, secondiRimanenti / durata));
-              const circonferenza = 2 * Math.PI * 36;
+              const frazione =
+                secondiRimanenti === null ? 1 : Math.max(0, Math.min(1, secondiRimanenti / durata));
+              const circonferenza = 2 * Math.PI * 30;
               const urgente = secondiRimanenti !== null && secondiRimanenti <= 5;
 
               return (
-                <>
+                <div
+                  key={astaLive.id}
+                  className={[
+                    "fk-card",
+                    "fk-stage",
+                    "fk-stage-in",
+                    inRush ? "fk-stage-rush" : "",
+                    superato ? "fk-stage-shake" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                >
                   <p className="fk-live-you">
                     Giochi come <strong>{miaSquadra.nome}</strong>
                   </p>
 
-                  <div
-                    key={astaLive.id}
-                    className={[
-                      "fk-card",
-                      "fk-stage",
-                      "fk-stage-in",
-                      inRush ? "fk-stage-rush" : "",
-                      superato ? "fk-stage-shake" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    <span className="fk-section-label">All'asta ora</span>
-                    <p className="fk-live-player">
-                      <span className="fk-chip" style={{ background: ruoloInfo.colore }}>
-                        {astaLive.ruolo}
-                      </span>
-                      {astaLive.giocatore}
+                  <p className="fk-live-player">
+                    <span className="fk-chip" style={{ background: ruoloInfo.colore }}>
+                      {astaLive.ruolo}
+                    </span>
+                    {astaLive.giocatore}
+                  </p>
+                  {inListone && (
+                    <p className="fk-live-club">
+                      {inListone.squadra} · quotazione {inListone.quotazione}
                     </p>
-                    {inListone && (
-                      <p className="fk-live-club">
-                        {inListone.squadra} · quotazione {inListone.quotazione}
-                      </p>
-                    )}
+                  )}
 
-                    <p
-                      className={inRush ? "fk-bid-value fk-bid-rush" : "fk-bid-value"}
-                      key={astaLive.offertaCorrente}
-                    >
-                      {astaLive.offertaCorrente}
-                    </p>
-                    <p className="fk-bid-unit">crediti</p>
-
-                    {inRush && <p className="fk-rush-badge">🔥 Rilanci a raffica!</p>}
-
-                    {secondiRimanenti !== null && (
-                      <div className="fk-ring-wrap">
-                        <div className="fk-ring">
-                          <svg width="84" height="84" viewBox="0 0 84 84">
-                            <circle
-                              className="fk-ring-track"
-                              cx="42"
-                              cy="42"
-                              r="36"
-                              fill="none"
-                              strokeWidth="6"
-                            />
-                            <circle
-                              className="fk-ring-bar"
-                              cx="42"
-                              cy="42"
-                              r="36"
-                              fill="none"
-                              strokeWidth="6"
-                              strokeLinecap="round"
-                              stroke={urgente ? "var(--red)" : "var(--green)"}
-                              strokeDasharray={circonferenza}
-                              strokeDashoffset={circonferenza * (1 - frazione)}
-                            />
-                          </svg>
-                          <div
-                            className={urgente ? "fk-ring-num fk-countdown-urgent" : "fk-ring-num"}
-                            style={{ color: urgente ? "var(--red)" : "var(--text)" }}
-                          >
-                            {secondiRimanenti}
-                          </div>
-                        </div>
-                        <div className="fk-ring-label">
-                          {astaLive.squadraOfferenteId
-                            ? "Se nessuno rilancia, il giocatore viene assegnato."
-                            : "Se nessuno offre, l'asta si annulla."}
-                        </div>
+                  <div className="fk-bid-row">
+                    <div className="fk-ring">
+                      <svg width="68" height="68" viewBox="0 0 68 68">
+                        <circle className="fk-ring-track" cx="34" cy="34" r="30" fill="none" strokeWidth="5" />
+                        <circle
+                          className="fk-ring-bar"
+                          cx="34"
+                          cy="34"
+                          r="30"
+                          fill="none"
+                          strokeWidth="5"
+                          strokeLinecap="round"
+                          stroke={urgente ? "var(--red)" : "var(--accent)"}
+                          strokeDasharray={circonferenza}
+                          strokeDashoffset={circonferenza * (1 - frazione)}
+                        />
+                      </svg>
+                      <div
+                        className={urgente ? "fk-ring-num fk-countdown-urgent" : "fk-ring-num"}
+                        style={{ color: urgente ? "var(--red)" : "var(--text)" }}
+                      >
+                        {secondiRimanenti ?? durata}
                       </div>
-                    )}
-
+                    </div>
                     <div>
-                      {sonoIoInTesta ? (
-                        <span className="fk-leader">
-                          <Crown size={15} /> Sei in testa
-                        </span>
-                      ) : astaLive.squadraOfferenteNome ? (
-                        <span className="fk-leader">
-                          <Crown size={15} /> {astaLive.squadraOfferenteNome}
-                        </span>
-                      ) : (
-                        <span className="fk-leader fk-leader-none">Nessuna offerta ancora</span>
-                      )}
-                    </div>
-
-                    {ruoloPienoLive && (
-                      <p className="fk-warn" style={{ marginTop: 12 }}>
-                        Reparto {ruoloInfo.label.toLowerCase()} già completo: non puoi offrire.
+                      <p
+                        className={inRush ? "fk-bid-value fk-bid-rush" : "fk-bid-value"}
+                        key={astaLive.offertaCorrente}
+                      >
+                        {astaLive.offertaCorrente}
                       </p>
-                    )}
-                    {!ruoloPienoLive && oltreTetto && (
-                      <p className="fk-warn" style={{ marginTop: 12 }}>
-                        Fuori portata: il tuo massimo è {Math.max(0, maxOffertaMia)} crediti.
-                      </p>
-                    )}
-                    {liveErr && (
-                      <p className="fk-error">
-                        <AlertTriangle size={14} /> {liveErr}
-                      </p>
-                    )}
-
-                    <div className="fk-live-actions">
-                      <button
-                        className="fk-primary fk-bid-btn"
-                        disabled={disabilitato}
-                        onClick={() => faiOfferta(astaLive.offertaCorrente + 1)}
-                      >
-                        Rilancia a {astaLive.offertaCorrente + 1}
-                      </button>
+                      <p className="fk-bid-unit">crediti</p>
                     </div>
+                  </div>
 
-                    <div className="fk-custom-bid">
-                      <input
-                        type="number"
-                        min={astaLive.offertaCorrente + 1}
-                        max={maxOffertaMia}
-                        value={bidValue}
-                        placeholder={`> ${astaLive.offertaCorrente}`}
-                        onChange={(e) => setBidValue(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && !disabilitato && faiOfferta(bidValue)}
-                      />
-                      <button
-                        className="fk-secondary"
-                        disabled={disabilitato}
-                        onClick={() => faiOfferta(bidValue)}
-                      >
-                        Offerta libera
-                      </button>
-                    </div>
+                  {inRush && <p className="fk-rush-badge">🔥 Rilanci a raffica!</p>}
 
-                    <div className="fk-stats-row">
-                      <div className="fk-stat">
-                        <div className="fk-stat-num" style={{ color: "var(--gold)" }}>{residui}</div>
-                        <div className="fk-stat-lab">tuoi crediti</div>
-                      </div>
-                      <div className="fk-stat">
-                        <div className="fk-stat-num">{postiLiberiMia}</div>
-                        <div className="fk-stat-lab">posti liberi</div>
-                      </div>
-                      <div className="fk-stat">
-                        <div className="fk-stat-num" style={{ color: "var(--green)" }}>{Math.max(0, maxOffertaMia)}</div>
-                        <div className="fk-stat-lab">offerta max</div>
-                      </div>
-                    </div>
-
-                    <div className="fk-divider" />
-
-                    <div className="fk-live-actions" style={{ marginTop: 0 }}>
-                      <button
-                        className="fk-secondary"
-                        disabled={!astaLive.squadraOfferenteId}
-                        onClick={assegnaEChiudiAstaLive}
-                      >
-                        <Check size={14} /> Chiudi e assegna
-                        {astaLive.squadraOfferenteNome ? ` a ${astaLive.squadraOfferenteNome}` : ""}
-                      </button>
-                      <button
-                        className="fk-secondary"
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              `Annullare l'asta per ${astaLive.giocatore}? Torna disponibile, l'offerta in corso va persa.`
-                            )
-                          ) {
-                            annullaAstaLive();
-                          }
-                        }}
-                      >
-                        <X size={14} /> Annulla
-                      </button>
-                    </div>
-
-                    {astaLive.storico && astaLive.storico.length > 0 && (
-                      <div className="fk-history">
-                        <h4>Rilanci</h4>
-                        <ul className="fk-history-list">
-                          {astaLive.storico
-                            .slice()
-                            .reverse()
-                            .slice(0, 6)
-                            .map((o, i) => (
-                              <li key={`${o.ts}-${i}`}>
-                                <span>{o.squadraNome}</span>
-                                <span>{o.valore}</span>
-                              </li>
-                            ))}
-                        </ul>
-                      </div>
+                  <div>
+                    {sonoIoInTesta ? (
+                      <span className="fk-leader">
+                        <Crown size={15} /> Sei in testa
+                      </span>
+                    ) : astaLive.squadraOfferenteNome ? (
+                      <span className="fk-leader">
+                        <Crown size={15} /> {astaLive.squadraOfferenteNome}
+                      </span>
+                    ) : (
+                      <span className="fk-leader fk-leader-none">Nessuna offerta ancora</span>
                     )}
                   </div>
-                </>
+
+                  {ruoloPienoLive && (
+                    <p className="fk-warn" style={{ marginTop: 10 }}>
+                      Reparto {ruoloInfo.label.toLowerCase()} già completo: non puoi offrire.
+                    </p>
+                  )}
+                  {!ruoloPienoLive && oltreTetto && (
+                    <p className="fk-warn" style={{ marginTop: 10 }}>
+                      Fuori portata: il tuo massimo è {Math.max(0, maxOffertaMia)} crediti.
+                    </p>
+                  )}
+                  {liveErr && (
+                    <p className="fk-error">
+                      <AlertTriangle size={14} /> {liveErr}
+                    </p>
+                  )}
+
+                  <div className="fk-live-actions">
+                    <button
+                      className="fk-primary fk-bid-btn"
+                      disabled={disabilitato}
+                      onClick={() => faiOfferta(astaLive.offertaCorrente + 1)}
+                    >
+                      Rilancia a {astaLive.offertaCorrente + 1}
+                    </button>
+                  </div>
+
+                  <div className="fk-custom-bid">
+                    <input
+                      type="number"
+                      min={astaLive.offertaCorrente + 1}
+                      max={maxOffertaMia}
+                      value={bidValue}
+                      placeholder={`> ${astaLive.offertaCorrente}`}
+                      onChange={(e) => setBidValue(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && !disabilitato && faiOfferta(bidValue)}
+                    />
+                    <button
+                      className="fk-secondary"
+                      disabled={disabilitato}
+                      onClick={() => faiOfferta(bidValue)}
+                    >
+                      Offerta libera
+                    </button>
+                  </div>
+
+                  {statistiche}
+
+                  <div className="fk-live-actions fk-chiudi-row">
+                    <button
+                      className="fk-secondary"
+                      disabled={!astaLive.squadraOfferenteId}
+                      onClick={assegnaEChiudiAstaLive}
+                    >
+                      <Check size={14} /> Chiudi e assegna
+                    </button>
+                    <button
+                      className="fk-secondary"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `Annullare l'asta per ${astaLive.giocatore}? Torna disponibile, l'offerta in corso va persa.`
+                          )
+                        ) {
+                          annullaAstaLive();
+                        }
+                      }}
+                    >
+                      <X size={14} /> Annulla
+                    </button>
+                  </div>
+                </div>
               );
             })()}
+
+            {/* ---------- pannello laterale: cronaca dell'asta ---------- */}
+            <div className="fk-card fk-panel">
+              <div className="fk-panel-tabs">
+                <button
+                  className={pannello === "ultimi" ? "fk-panel-tab fk-panel-tab-on" : "fk-panel-tab"}
+                  onClick={() => setPannello("ultimi")}
+                >
+                  🕑 Ultimi
+                </button>
+                <button
+                  className={pannello === "top" ? "fk-panel-tab fk-panel-tab-on" : "fk-panel-tab"}
+                  onClick={() => setPannello("top")}
+                >
+                  💰 Top
+                </button>
+                <button
+                  className={pannello === "rilanci" ? "fk-panel-tab fk-panel-tab-on" : "fk-panel-tab"}
+                  onClick={() => setPannello("rilanci")}
+                >
+                  😤 Fastidiosi
+                </button>
+              </div>
+
+              <div className="fk-panel-body">
+                {pannello === "ultimi" &&
+                  (ultimiAcquisti.length === 0 ? (
+                    <div className="fk-empty">
+                      <span className="fk-empty-emoji">🕑</span>
+                      Nessun acquisto ancora.
+                    </div>
+                  ) : (
+                    <ul className="fk-panel-list">
+                      {ultimiAcquisti.map((a, i) => {
+                        const r = RUOLI.find((x) => x.key === a.ruolo);
+                        return (
+                          <li key={`${a.giocatoreId}-${i}`}>
+                            <span className="fk-chip" style={{ background: r?.colore }}>
+                              {a.ruolo}
+                            </span>
+                            <span className="fk-panel-main">
+                              <span className="fk-panel-nome">{a.nome}</span>
+                              <span className="fk-panel-sub">{a.squadraNome}</span>
+                            </span>
+                            <span className="fk-panel-val">{a.crediti}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ))}
+
+                {pannello === "top" &&
+                  (topAcquisti.length === 0 ? (
+                    <div className="fk-empty">
+                      <span className="fk-empty-emoji">💰</span>
+                      Ancora nessun colpo di mercato.
+                    </div>
+                  ) : (
+                    <ul className="fk-panel-list">
+                      {topAcquisti.map((g, i) => {
+                        const r = RUOLI.find((x) => x.key === g.ruolo);
+                        return (
+                          <li key={g.id}>
+                            <span className="fk-panel-pos">{i + 1}</span>
+                            <span className="fk-chip" style={{ background: r?.colore }}>
+                              {g.ruolo}
+                            </span>
+                            <span className="fk-panel-main">
+                              <span className="fk-panel-nome">{g.nome}</span>
+                              <span className="fk-panel-sub">{g.squadraNome}</span>
+                            </span>
+                            <span className="fk-panel-val">{g.crediti}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ))}
+
+                {pannello === "rilanci" && (
+                  <>
+                    <p className="fk-hint" style={{ margin: "0 0 10px" }}>
+                      Chi rilancia di più da inizio asta.
+                    </p>
+                    <ul className="fk-panel-list">
+                      {classificaRilanci.map((s, i) => (
+                        <li key={s.id} className={s.id === deviceRole ? "fk-panel-mia" : undefined}>
+                          <span className="fk-panel-pos">{i + 1}</span>
+                          <span className="fk-panel-main">
+                            <span className="fk-panel-nome">
+                              {i === 0 && s.rilanci > 0 ? "😤 " : ""}
+                              {s.nome}
+                            </span>
+                          </span>
+                          <span className="fk-panel-val">{s.rilanci}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            </div>
           </section>
         )}
 
@@ -1444,17 +1554,22 @@ export default function AstaRoom() {
                   </p>
 
                   {!mia && (
-                    <div className="fk-lancio-bar">
-                      {["🍅", "🥚", "🍌", "👏", "🎉"].map((e) => (
-                        <button
-                          key={e}
-                          className="fk-lancio-btn"
-                          title={`Lancia ${e} a ${s.nome}`}
-                          onClick={() => lanciaOggetto(s.id, s.nome, e)}
-                        >
-                          {e}
-                        </button>
-                      ))}
+                    <div className="fk-lancio-box">
+                      <span className="fk-lancio-label">
+                        🎯 Lancia qualcosa a <strong>{s.nome}</strong>
+                      </span>
+                      <div className="fk-lancio-bar">
+                        {["🍅", "🥚", "🍌", "👏", "🎉"].map((e) => (
+                          <button
+                            key={e}
+                            className="fk-lancio-btn"
+                            title={`Lancia ${e} a ${s.nome}`}
+                            onClick={() => lanciaOggetto(s.id, s.nome, e)}
+                          >
+                            {e}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -1620,7 +1735,7 @@ export default function AstaRoom() {
                       <button
                         key={r.key}
                         className={attivo ? "fk-choice fk-choice-active" : "fk-choice"}
-                        style={attivo ? { background: r.colore, borderColor: r.colore, color: "#06120C" } : undefined}
+                        style={attivo ? { background: r.colore, borderColor: r.colore, color: "#231A12" } : undefined}
                         onClick={() => setDispRuolo(r.key)}
                       >
                         {r.label}

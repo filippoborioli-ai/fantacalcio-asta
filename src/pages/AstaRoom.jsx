@@ -148,7 +148,9 @@ export default function AstaRoom() {
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState("");
   const [liveForm, setLiveForm] = useState({ nome: "", ruolo: "P", offertaBase: "1" });
-  const [bidValue, setBidValue] = useState("1");
+  // Vuoto = rilancia di +1 (il default). Un numero scritto qui vince: il
+  // pulsante rilancia a quella quota finale invece che al minimo.
+  const [bidValue, setBidValue] = useState("");
   const [liveErr, setLiveErr] = useState("");
   const [copiato, setCopiato] = useState(false);
   const [newTeamName, setNewTeamName] = useState("");
@@ -249,6 +251,13 @@ export default function AstaRoom() {
   const config = asta_iniziata ? stato.config : configDraft;
   const squadre = asta_iniziata ? stato.squadre : null;
   const astaLive = stato?.astaLive || null;
+
+  // A ogni cambio dell'offerta corrente (proprio o altrui) o nuovo giocatore,
+  // il box torna vuoto: si riparte dal default (+1) invece di tenersi in
+  // mano una quota finale che non ha più senso col nuovo numero.
+  useEffect(() => {
+    setBidValue("");
+  }, [astaLive?.id, astaLive?.offertaCorrente]);
 
   // Giocatori del listone non ancora assegnati a nessuna squadra: utile per
   // vedere in un colpo d'occhio chi manca ancora da mettere all'asta.
@@ -752,7 +761,7 @@ export default function AstaRoom() {
           rilanci[squadra.id] = (rilanci[squadra.id] || 0) + 1;
           tx.update(ref, { astaLive: nuovoLive, rilanci });
         });
-        setBidValue("1");
+        setBidValue("");
       } catch (e) {
         setLiveErr(e.message || "Errore nell'invio dell'offerta.");
       }
@@ -1333,12 +1342,16 @@ export default function AstaRoom() {
                 occupati(miaSquadra, astaLive.ruolo) >= config.slot[astaLive.ruolo];
               const oltreTetto = astaLive.offertaCorrente + 1 > maxOffertaMia;
               const disabilitato = ruoloPienoLive || oltreTetto;
-              // Di quanto rilanciare: campo libero, di default +1. Un solo
-              // pulsante "Rilancia a N" invece di due controlli separati.
-              const incrementoNum = parseInt(bidValue, 10);
-              const incremento = Number.isFinite(incrementoNum) && incrementoNum > 0 ? incrementoNum : 1;
-              const targetOfferta = astaLive.offertaCorrente + incremento;
-              const rilancioDisabilitato = disabilitato || targetOfferta > maxOffertaMia;
+              // Box vuoto: il pulsante rilancia di +1 (il default). Un numero
+              // scritto qui vince: il pulsante rilancia a quella quota finale.
+              const rilancioMinimo = astaLive.offertaCorrente + 1;
+              const boxVuoto = bidValue.trim() === "";
+              const targetNum = parseInt(bidValue, 10);
+              const targetScrittoValido = Number.isFinite(targetNum) && targetNum > astaLive.offertaCorrente;
+              const targetValido = boxVuoto || targetScrittoValido;
+              const targetOfferta = targetScrittoValido ? targetNum : rilancioMinimo;
+              const quotaDisabilitata =
+                disabilitato || !targetValido || targetOfferta > maxOffertaMia;
               const inListone = listone.find(
                 (g) => normalizza(g.nome) === normalizza(astaLive.giocatore)
               );
@@ -1443,22 +1456,22 @@ export default function AstaRoom() {
                   <div className="fk-bid-row">
                     <button
                       className="fk-primary fk-bid-btn"
-                      disabled={rilancioDisabilitato}
+                      disabled={quotaDisabilitata}
                       onClick={() => faiOfferta(targetOfferta)}
                     >
                       Rilancia a {targetOfferta}
                     </button>
 
-                    <div className="fk-bid-step" title="Di quanto rilanciare">
-                      <span className="fk-bid-step-plus">+</span>
+                    <div className="fk-bid-step" title="Quota finale (vuoto = rilancia di +1)">
                       <input
                         type="number"
-                        aria-label="Di quanto rilanciare"
-                        min={1}
-                        max={Math.max(1, maxOffertaMia - astaLive.offertaCorrente)}
+                        aria-label="Quota finale a cui rilanciare"
+                        placeholder={String(rilancioMinimo)}
+                        min={rilancioMinimo}
+                        max={Math.max(rilancioMinimo, maxOffertaMia)}
                         value={bidValue}
                         onChange={(e) => setBidValue(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && !rilancioDisabilitato && faiOfferta(targetOfferta)}
+                        onKeyDown={(e) => e.key === "Enter" && !quotaDisabilitata && faiOfferta(targetOfferta)}
                       />
                     </div>
                   </div>

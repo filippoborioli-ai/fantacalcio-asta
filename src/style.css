@@ -746,26 +746,26 @@ select option { background: var(--surface-solid); color: var(--text); }
   margin-top: clamp(8px, 1.6vh, 16px);
 }
 
+/* Quota finale a cui rilanciare: vuoto = usa il default (+1 sul pulsante),
+   un numero scritto qui vince e diventa il bersaglio del pulsante. */
 .fk-bid-step {
   display: flex;
   align-items: center;
-  gap: 2px;
   background: var(--well);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: 0 4px 0 12px;
+  padding: 0 6px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .fk-bid-step:focus-within {
   border-color: var(--accent-ink);
   box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.16);
 }
-.fk-bid-step-plus { color: var(--text-faint); font-weight: 700; font-size: 15px; flex-shrink: 0; }
 .fk-bid-step input {
   font-size: clamp(15px, 2vh, 18px);
   border: none;
   background: none;
-  width: 64px;
+  width: 78px;
   text-align: center;
   padding: 10px 4px;
 }

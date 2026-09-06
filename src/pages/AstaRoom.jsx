@@ -986,6 +986,7 @@ export default function AstaRoom() {
 
       <main className={tab === "live" ? "fk-main fk-main-live" : "fk-main"}>
         {tab === "setup" && (
+          <div className="fk-setup-grid">
           <section className="fk-card fk-setup">
             {asta_iniziata && !sbloccaImpostazioni && (
               <div className="fk-notice">
@@ -1126,6 +1127,68 @@ export default function AstaRoom() {
               </div>
             )}
           </section>
+
+          <aside className="fk-card fk-setup-aside">
+            {!asta_iniziata ? (
+              <>
+                <span className="fk-section-label">Come funziona</span>
+                <ol className="fk-steps">
+                  <li>
+                    <span className="fk-step-num">1</span>
+                    <div>
+                      <strong>Configura le regole</strong>
+                      <p>Crediti a disposizione e quanti giocatori per ruolo in ogni rosa.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="fk-step-num">2</span>
+                    <div>
+                      <strong>Inizia l'asta</strong>
+                      <p>Ricevi un codice a 6 caratteri: nessuna registrazione richiesta.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="fk-step-num">3</span>
+                    <div>
+                      <strong>Passa il codice ai tuoi amici</strong>
+                      <p>Ognuno entra da solo e crea la propria squadra col nome che preferisce.</p>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="fk-step-num">4</span>
+                    <div>
+                      <strong>Chiama i giocatori</strong>
+                      <p>Tutti rilanciano in tempo reale dal proprio telefono, come in un'asta vera.</p>
+                    </div>
+                  </li>
+                </ol>
+              </>
+            ) : (
+              <>
+                <span className="fk-section-label">Squadre iscritte</span>
+                {squadre.length === 0 ? (
+                  <p className="fk-hint" style={{ marginTop: 0 }}>
+                    Ancora nessuna squadra: passa il codice qui sotto ai tuoi amici, si iscrivono da
+                    soli appena entrano.
+                  </p>
+                ) : (
+                  <ul className="fk-aside-teams">
+                    {squadre.map((s) => (
+                      <li key={s.id}>{s.nome}</li>
+                    ))}
+                  </ul>
+                )}
+                <div className="fk-divider" />
+                <span className="fk-section-label">Codice della lega</span>
+                <button className="fk-code-badge fk-code-badge-big" onClick={copiaCodice}>
+                  <strong>{codice}</strong>
+                  {copiato ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+                <p className="fk-hint">Tocca per copiare, poi condividilo dove preferisci.</p>
+              </>
+            )}
+          </aside>
+          </div>
         )}
 
         {tab === "live" && asta_iniziata && (
@@ -1354,7 +1417,7 @@ export default function AstaRoom() {
                     </p>
                   )}
 
-                  <div className="fk-live-actions">
+                  <div className="fk-bid-row">
                     <button
                       className="fk-primary fk-bid-btn"
                       disabled={disabilitato}
@@ -1362,25 +1425,25 @@ export default function AstaRoom() {
                     >
                       Rilancia a {astaLive.offertaCorrente + 1}
                     </button>
-                  </div>
 
-                  <div className="fk-custom-bid">
-                    <input
-                      type="number"
-                      min={astaLive.offertaCorrente + 1}
-                      max={maxOffertaMia}
-                      value={bidValue}
-                      placeholder={`> ${astaLive.offertaCorrente}`}
-                      onChange={(e) => setBidValue(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && !disabilitato && faiOfferta(bidValue)}
-                    />
-                    <button
-                      className="fk-secondary"
-                      disabled={disabilitato}
-                      onClick={() => faiOfferta(bidValue)}
-                    >
-                      Offerta libera
-                    </button>
+                    <div className="fk-custom-bid">
+                      <input
+                        type="number"
+                        min={astaLive.offertaCorrente + 1}
+                        max={maxOffertaMia}
+                        value={bidValue}
+                        placeholder={`> ${astaLive.offertaCorrente}`}
+                        onChange={(e) => setBidValue(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && !disabilitato && faiOfferta(bidValue)}
+                      />
+                      <button
+                        className="fk-secondary"
+                        disabled={disabilitato}
+                        onClick={() => faiOfferta(bidValue)}
+                      >
+                        Offerta libera
+                      </button>
+                    </div>
                   </div>
 
                   {statistiche}

@@ -39,21 +39,36 @@ function spara(top) {
   const colori = top
     ? ["#F5C542", "#F3DFA0", "#FFFFFF"]
     : ["#35D07F", "#4EA8DE", "#F5C542"];
+  const base = { colors: colori, ticks: 420, gravity: 0.75, scalar: 1.1 };
   confetti({
-    particleCount: top ? 140 : 70,
-    spread: top ? 100 : 70,
-    startVelocity: top ? 55 : 40,
-    colors: colori,
+    ...base,
+    particleCount: top ? 150 : 90,
+    spread: top ? 100 : 75,
+    startVelocity: top ? 55 : 42,
     origin: { y: 0.3 },
   });
+  // una seconda ondata più leggera qualche istante dopo, per far durare
+  // la festa qualche secondo invece di un lampo solo
+  setTimeout(
+    () => confetti({ ...base, particleCount: top ? 70 : 40, spread: 90, startVelocity: 32, origin: { y: 0.35 } }),
+    500
+  );
   if (top) {
     setTimeout(
-      () => confetti({ particleCount: 90, angle: 60, spread: 60, colors: colori, origin: { x: 0, y: 0.5 } }),
+      () => confetti({ ...base, particleCount: 90, angle: 60, spread: 60, origin: { x: 0, y: 0.5 } }),
       200
     );
     setTimeout(
-      () => confetti({ particleCount: 90, angle: 120, spread: 60, colors: colori, origin: { x: 1, y: 0.5 } }),
+      () => confetti({ ...base, particleCount: 90, angle: 120, spread: 60, origin: { x: 1, y: 0.5 } }),
       350
+    );
+    setTimeout(
+      () => confetti({ ...base, particleCount: 60, angle: 60, spread: 60, origin: { x: 0, y: 0.5 } }),
+      1000
+    );
+    setTimeout(
+      () => confetti({ ...base, particleCount: 60, angle: 120, spread: 60, origin: { x: 1, y: 0.5 } }),
+      1150
     );
   }
 }
@@ -93,6 +108,11 @@ function suona(tipo) {
     } else if (tipo === "squadra") {
       note(587, 0, 0.1, 0.07);
       note(784, 0.08, 0.18, 0.07);
+    } else if (tipo === "lancio") {
+      note(500, 0, 0.06, 0.05);
+      note(340, 0.05, 0.08, 0.05);
+    } else if (tipo === "colpito") {
+      note(180, 0, 0.18, 0.08);
     }
   } catch (e) {
     // audio non disponibile: nessun problema, l'app funziona lo stesso
@@ -140,16 +160,25 @@ export default function AstaRoom() {
   const [toasts, setToasts] = useState([]);
   const [inRush, setInRush] = useState(false);
   const [superato, setSuperato] = useState(false);
+  const [lanci, setLanci] = useState([]);
+  const [colpito, setColpito] = useState(false);
   const prevGiocatoriIdsRef = useRef(null);
   const prevSquadraIdsRef = useRef(null);
   const prevAstaLiveRef = useRef(null);
+  const prevLancioIdRef = useRef(null);
+  const lancioInizializzatoRef = useRef(false);
   const tabInitRef = useRef(false);
   const inRushRef = useRef(false);
 
   const aggiungiToast = useCallback((toast) => {
     const id = uid();
+    const durata = toast.durata || 6500;
     setToasts((t) => [...t.slice(-2), { id, ...toast }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), toast.durata || 4200);
+    setTimeout(
+      () => setToasts((t) => t.map((x) => (x.id === id ? { ...x, uscendo: true } : x))),
+      Math.max(0, durata - 450)
+    );
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), durata);
   }, []);
 
   // Sottoscrizione realtime al documento dell'asta
@@ -321,7 +350,7 @@ export default function AstaRoom() {
           emoji: "⚡",
           titolo: <strong>Sei stato superato!</strong>,
           sub: `${astaLive.squadraOfferenteNome} ha rilanciato a ${astaLive.offertaCorrente}`,
-          durata: 3200,
+          durata: 5000,
         });
         suona("superato");
         setSuperato(true);
@@ -330,6 +359,47 @@ export default function AstaRoom() {
     }
     prevAstaLiveRef.current = astaLive;
   }, [astaLive, deviceRole, aggiungiToast]);
+
+  // Lancio oggetti in stile "tavolo da poker": una squadra ne prende in giro
+  // un'altra (o la applaude) lanciandole un'emoji. Un solo campo condiviso
+  // sull'asta, tutti i dispositivi lo vedono volare in tempo reale.
+  const lanciaOggetto = useCallback(
+    async (aId, aNome, emoji) => {
+      const mia = (squadre || []).find((s) => s.id === deviceRole);
+      if (!mia) return;
+      try {
+        await updateDoc(ref, {
+          lancio: { id: uid(), daId: mia.id, daNome: mia.nome, aId, aNome, emoji, ts: Date.now() },
+        });
+      } catch (e) {
+        // se fallisce non è grave, è solo goliardia
+      }
+    },
+    [ref, squadre, deviceRole]
+  );
+
+  useEffect(() => {
+    const l = stato?.lancio;
+    // Prima esecuzione: fotografo lo stato attuale come base, senza animare
+    // (evita di far volare all'apertura pagina un lancio già vecchio).
+    if (!lancioInizializzatoRef.current) {
+      lancioInizializzatoRef.current = true;
+      prevLancioIdRef.current = l ? l.id : null;
+      return;
+    }
+    if (l && l.id !== prevLancioIdRef.current) {
+      const localId = uid();
+      setLanci((arr) => [...arr.slice(-2), { ...l, localId }]);
+      suona("lancio");
+      setTimeout(() => setLanci((arr) => arr.filter((x) => x.localId !== localId)), 2600);
+      if (l.aId === deviceRole) {
+        setColpito(true);
+        suona("colpito");
+        setTimeout(() => setColpito(false), 550);
+      }
+      prevLancioIdRef.current = l.id;
+    }
+  }, [stato?.lancio, deviceRole]);
 
   // "Rush": due rilanci ravvicinati di fila accendono l'effetto visivo, si
   // spegne da solo se i rilanci rallentano.
@@ -776,12 +846,20 @@ export default function AstaRoom() {
   }
 
   return (
-    <div className="fk-root">
+    <div className={colpito ? "fk-root fk-root-colpito" : "fk-root"}>
+      {lanci.map((l) => (
+        <div key={l.localId} className="fk-lancio-fly">
+          <span className="fk-lancio-fly-emoji">{l.emoji}</span>
+          <span className="fk-lancio-fly-caption">
+            {l.daNome} → {l.aId === deviceRole ? "te" : l.aNome}
+          </span>
+        </div>
+      ))}
       <div className="fk-toast-stack">
         {toasts.map((t, i) => (
           <div
             key={t.id}
-            className={`fk-toast fk-toast-${t.tipo}`}
+            className={`fk-toast fk-toast-${t.tipo}${t.uscendo ? " fk-toast-uscendo" : ""}`}
             style={{ "--i": i }}
           >
             <span className="fk-toast-emoji">{t.emoji}</span>
@@ -1364,6 +1442,21 @@ export default function AstaRoom() {
                   <p className="fk-hint">
                     {totaleOccupati} / {totaleSlot} giocatori in rosa
                   </p>
+
+                  {!mia && (
+                    <div className="fk-lancio-bar">
+                      {["🍅", "🥚", "🍌", "👏", "🎉"].map((e) => (
+                        <button
+                          key={e}
+                          className="fk-lancio-btn"
+                          title={`Lancia ${e} a ${s.nome}`}
+                          onClick={() => lanciaOggetto(s.id, s.nome, e)}
+                        >
+                          {e}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   {RUOLI.map((r) => {
                     const giocatoriRuolo = s.giocatori.filter((g) => g.ruolo === r.key);

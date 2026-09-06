@@ -6,13 +6,13 @@
 
 :root {
   /* fondali */
-  --bg-0: #080F0C;
-  --bg-1: #0E1A14;
-  --bg-2: #142219;
+  --bg-0: #121F17;
+  --bg-1: #1A2C21;
+  --bg-2: #20372A;
 
   /* superfici */
-  --surface: rgba(255, 255, 255, 0.045);
-  --surface-2: rgba(255, 255, 255, 0.075);
+  --surface: rgba(255, 255, 255, 0.065);
+  --surface-2: rgba(255, 255, 255, 0.1);
   --surface-solid: #16241C;
   --line: rgba(255, 255, 255, 0.10);
   --line-strong: rgba(255, 255, 255, 0.18);
@@ -1123,3 +1123,98 @@ select option { background: var(--surface-solid); color: var(--text); }
   animation: fk-toast-in 0.38s cubic-bezier(0.34, 1.56, 0.64, 1), fk-shake-hard 0.4s ease-in-out;
 }
 .fk-toast-superato .fk-toast-sub { color: #FF9B8A; }
+
+/* =========================================================
+   USCITA TOAST, LANCIO OGGETTI, "COLPITO"
+   ========================================================= */
+
+@keyframes fk-toast-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.94) translateY(-10px); }
+}
+.fk-toast-uscendo { animation: fk-toast-out 0.4s ease-in forwards; }
+
+/* barra di lancio sulle squadre avversarie */
+.fk-lancio-bar {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+.fk-lancio-btn {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 17px;
+  line-height: 1;
+  padding: 7px 9px;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.fk-lancio-btn:hover { background: var(--surface-2); border-color: var(--line-strong); transform: translateY(-2px) scale(1.08); }
+.fk-lancio-btn:active { transform: scale(0.9) rotate(-8deg); }
+
+/* oggetto che vola da un capo all'altro dello schermo. La posizione anima sul
+   contenitore, la rotazione solo sull'emoji: così la scritta sotto resta
+   sempre leggibile invece di girare a testa in giù insieme all'oggetto. */
+@keyframes fk-fly-pos {
+  0% { left: -8vw; top: 78vh; opacity: 0; }
+  10% { opacity: 1; }
+  50% { left: 50vw; top: 18vh; }
+  85% { opacity: 1; }
+  100% { left: 108vw; top: 60vh; opacity: 0; }
+}
+@keyframes fk-fly-spin {
+  0% { transform: scale(0.7) rotate(0deg); }
+  50% { transform: scale(1.5) rotate(340deg); }
+  100% { transform: scale(0.9) rotate(680deg); }
+}
+.fk-lancio-fly {
+  position: fixed;
+  z-index: 90;
+  pointer-events: none;
+  text-align: center;
+  transform: translate(-50%, -50%);
+  animation: fk-fly-pos 2.1s cubic-bezier(0.33, 0, 0.2, 1) forwards;
+}
+.fk-lancio-fly-emoji {
+  display: block;
+  font-size: 54px;
+  filter: drop-shadow(0 8px 18px rgba(0,0,0,0.5));
+  animation: fk-fly-spin 2.1s cubic-bezier(0.33, 0, 0.2, 1) forwards;
+}
+.fk-lancio-fly-caption {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  background: rgba(0,0,0,0.55);
+  padding: 3px 9px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+/* pagina intera che trema un attimo quando vieni colpito */
+@keyframes fk-root-hit {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(3px); }
+}
+.fk-root-colpito { animation: fk-root-hit 0.5s ease-in-out; }
+.fk-root-colpito::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(255, 107, 69, 0.35) 100%);
+  animation: fk-hit-flash 0.55s ease-out forwards;
+}
+@keyframes fk-hit-flash {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}

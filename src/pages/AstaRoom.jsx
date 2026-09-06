@@ -122,6 +122,25 @@ function suona(tipo) {
   }
 }
 
+// Asta live spenta: forma unica, usata sia dall'annullamento manuale sia
+// dalla chiusura automatica. Averla in un posto solo evita che le due strade
+// lascino sul documento campi diversi.
+function astaLiveVuota() {
+  return {
+    attiva: false,
+    giocatore: "",
+    ruolo: "P",
+    offertaCorrente: 0,
+    squadraOfferenteId: null,
+    squadraOfferenteNome: null,
+    chiamataDaId: null,
+    chiamataDaNome: null,
+    storico: [],
+    durataSecondi: 0,
+    scadenza: null,
+  };
+}
+
 export default function AstaRoom() {
   const { codice } = useParams();
   const ref = useMemo(() => doc(db, "aste", codice), [codice]);
@@ -690,36 +709,106 @@ export default function AstaRoom() {
   }, [liveForm, ref, squadre, deviceRole, config]);
 
   const annullaAstaLive = useCallback(async () => {
-    await updateDoc(ref, {
-      astaLive: {
-        attiva: false,
-        giocatore: "",
-        ruolo: "P",
-        offertaCorrente: 0,
-        squadraOfferenteId: null,
-        squadraOfferenteNome: null,
-        chiamataDaId: null,
-        chiamataDaNome: null,
-        storico: [],
-        durataSecondi: 0,
-        scadenza: null,
-      },
-    });
+    await updateDoc(ref, { astaLive: astaLiveVuota() });
   }, [ref]);
 
-  const assegnaEChiudiAstaLive = useCallback(async () => {
-    setLiveErr("");
-    if (!astaLive || !astaLive.attiva) return;
-    if (!astaLive.squadraOfferenteId) return setLiveErr("Nessuna offerta ricevuta ancora.");
-    const err = await assegnaGiocatore(
-      astaLive.squadraOfferenteId,
-      astaLive.ruolo,
-      astaLive.giocatore,
-      String(astaLive.offertaCorrente)
-    );
-    if (err) return setLiveErr(err);
-    await annullaAstaLive();
-  }, [astaLive, assegnaGiocatore, annullaAstaLive]);
+  // Chiusura dell'asta live. Assegnare il giocatore e spegnere l'asta DEVONO
+  // stare nella stessa transazione: quando erano due scritture separate, un
+  // rilancio che arrivava nel mezzo faceva resuscitare l'asta su un giocatore
+  // ormai già in rosa. Risultato: asta viva per sempre, timer fermo a 0 e
+  // "è già in rosa" a ogni tentativo di chiusura (bug visto in partita, con
+  // un rilancio all'ultimo secondo).
+  //
+  // Qui invece o si chiude tutto insieme o non cambia niente. Ed è idempotente:
+  // se qualcun altro ha già chiuso, o il giocatore risulta già assegnato,
+  // l'asta viene comunque spenta invece di lasciare tutto incastrato.
+  const chiudiAstaLive = useCallback(
+    async (astaId) => {
+      setLiveErr("");
+      try {
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(ref);
+          const dati = snap.data();
+          const live = dati.astaLive;
+
+          // Già chiusa, oppure nel frattempo ne è partita un'altra: nulla da fare.
+          if (!live || !live.attiva) return;
+          if (astaId && live.id && live.id !== astaId) return;
+
+          // Nessuna offerta: si spegne e basta, il giocatore torna disponibile.
+          if (!live.squadraOfferenteId) {
+            tx.update(ref, { astaLive: astaLiveVuota() });
+            return;
+          }
+
+          // Giocatore già in rosa da qualche parte (doppia chiusura in
+          // parallelo da due dispositivi, o stato rimasto incastrato da
+          // prima): l'asta va comunque spenta. È questo che sblocca, invece
+          // di ripetere l'errore all'infinito.
+          if (trovaGiocatoreAssegnato(dati.squadre, live.giocatore)) {
+            tx.update(ref, { astaLive: astaLiveVuota() });
+            return;
+          }
+
+          const squadra = dati.squadre.find((s) => s.id === live.squadraOfferenteId);
+          if (!squadra) {
+            tx.update(ref, { astaLive: astaLiveVuota() });
+            return;
+          }
+
+          // Controlli di capienza sul vincitore. Se non passano, l'asta si
+          // chiude lo stesso (il giocatore torna disponibile) e l'errore viene
+          // mostrato: meglio che restare bloccati con il timer a zero.
+          const ruoloPieno = occupati(squadra, live.ruolo) >= dati.config.slot[live.ruolo];
+          const residui = creditiResidui(squadra, dati.config.budget);
+          const postiLiberi = postiLiberiTotali(squadra, dati.config.slot);
+          const maxAmmessi = residui - Math.max(0, postiLiberi - 1);
+          if (ruoloPieno || live.offertaCorrente > maxAmmessi) {
+            tx.update(ref, { astaLive: astaLiveVuota() });
+            throw new Error(
+              ruoloPieno
+                ? `${squadra.nome} ha già completato il reparto: ${live.giocatore} torna disponibile.`
+                : `${squadra.nome} non ha abbastanza crediti per ${live.giocatore}: torna disponibile.`
+            );
+          }
+
+          const nuovoGiocatore = {
+            id: uid(),
+            nome: live.giocatore,
+            ruolo: live.ruolo,
+            crediti: live.offertaCorrente,
+          };
+          const nuoveSquadre = dati.squadre.map((s) =>
+            s.id === squadra.id ? { ...s, giocatori: [...s.giocatori, nuovoGiocatore] } : s
+          );
+          const storico = [
+            ...(dati.storicoAcquisti || []),
+            {
+              giocatoreId: nuovoGiocatore.id,
+              nome: nuovoGiocatore.nome,
+              ruolo: nuovoGiocatore.ruolo,
+              crediti: nuovoGiocatore.crediti,
+              squadraId: squadra.id,
+              squadraNome: squadra.nome,
+              ts: Date.now(),
+            },
+          ].slice(-60);
+
+          tx.update(ref, {
+            squadre: nuoveSquadre,
+            storicoAcquisti: storico,
+            astaLive: astaLiveVuota(),
+          });
+        });
+        return null;
+      } catch (e) {
+        const messaggio = e.message || "Errore nella chiusura dell'asta.";
+        setLiveErr(messaggio);
+        return messaggio;
+      }
+    },
+    [ref]
+  );
 
   const faiOfferta = useCallback(
     async (valoreRaw) => {
@@ -732,8 +821,17 @@ export default function AstaRoom() {
           const dati = snap.data();
           const live = dati.astaLive;
           if (!live || !live.attiva) throw new Error("Nessuna asta attiva al momento.");
+          // Offerta arrivata dopo lo scadere del tempo: va rifiutata, altrimenti
+          // farebbe ripartire il countdown di un'asta che gli altri dispositivi
+          // stanno già chiudendo — ed è così che il giocatore finiva in rosa
+          // con l'asta ancora aperta sopra di lui.
+          if (live.scadenza && Date.now() > live.scadenza)
+            throw new Error("Tempo scaduto: l'asta si sta chiudendo.");
           const squadra = dati.squadre.find((s) => s.id === deviceRole);
           if (!squadra) throw new Error("Squadra non riconosciuta su questo dispositivo.");
+          // Rilanciare contro sé stessi brucia crediti e basta.
+          if (live.squadraOfferenteId === squadra.id)
+            throw new Error("Sei già in testa: aspetta che rilanci qualcun altro.");
           if (occupati(squadra, live.ruolo) >= dati.config.slot[live.ruolo]) {
             throw new Error(
               `Hai già completato il reparto ${RUOLI.find((r) => r.key === live.ruolo).label.toLowerCase()}.`
@@ -788,21 +886,23 @@ export default function AstaRoom() {
       setSecondiRimanenti(null);
       return;
     }
+    // Allo scadere del tempo la chiusura è una sola strada (assegna o spegne,
+    // lo decide la transazione guardando lo stato più fresco). Se più
+    // dispositivi ci arrivano insieme, il primo chiude e gli altri trovano
+    // l'asta già chiusa e non fanno nulla.
+    let chiusuraLanciata = false;
     const tick = () => {
       const rimasti = Math.max(0, Math.ceil((astaLive.scadenza - Date.now()) / 1000));
       setSecondiRimanenti(rimasti);
-      if (rimasti <= 0) {
-        if (astaLive.squadraOfferenteId) {
-          assegnaEChiudiAstaLive();
-        } else {
-          annullaAstaLive();
-        }
+      if (rimasti <= 0 && !chiusuraLanciata) {
+        chiusuraLanciata = true;
+        chiudiAstaLive(astaLive.id);
       }
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [astaLive?.scadenza, astaLive?.attiva, astaLive?.squadraOfferenteId, assegnaEChiudiAstaLive, annullaAstaLive]);
+  }, [astaLive?.scadenza, astaLive?.attiva, astaLive?.id, chiudiAstaLive]);
 
   // Registrazione self-service: chi entra con il codice crea la propria
   // squadra al volo con il nome che preferisce (transazionale, così due
@@ -1359,7 +1459,7 @@ export default function AstaRoom() {
               const targetValido = boxVuoto || targetScrittoValido;
               const targetOfferta = targetScrittoValido ? targetNum : rilancioMinimo;
               const quotaDisabilitata =
-                disabilitato || !targetValido || targetOfferta > maxOffertaMia;
+                disabilitato || sonoIoInTesta || !targetValido || targetOfferta > maxOffertaMia;
               const inListone = listone.find(
                 (g) => normalizza(g.nome) === normalizza(astaLive.giocatore)
               );
@@ -1497,7 +1597,7 @@ export default function AstaRoom() {
                     <button
                       className="fk-secondary"
                       disabled={!astaLive.squadraOfferenteId}
-                      onClick={assegnaEChiudiAstaLive}
+                      onClick={() => chiudiAstaLive(astaLive.id)}
                     >
                       <Check size={14} /> Chiudi e assegna
                     </button>

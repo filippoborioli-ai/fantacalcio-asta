@@ -656,9 +656,10 @@ select option { background: var(--surface-solid); color: var(--text); }
   align-items: center;
   justify-content: center;
   margin-top: 14px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
-.fk-custom-bid input { max-width: 130px; text-align: center; }
+.fk-custom-bid input { max-width: 100px; min-width: 60px; flex: 1 1 60px; text-align: center; }
+.fk-custom-bid button { flex-shrink: 0; white-space: nowrap; }
 
 /* rilancio rapido + offerta libera sulla stessa riga: il palco dell'asta live
    ha poco spazio verticale da spartire, due righe separate per due modi di

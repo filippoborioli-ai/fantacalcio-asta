@@ -136,6 +136,7 @@ export default function AstaRoom() {
   const [secondiRimanenti, setSecondiRimanenti] = useState(null);
   const [dispRuolo, setDispRuolo] = useState("TUTTI");
   const [dispQuery, setDispQuery] = useState("");
+  const [dispSquadra, setDispSquadra] = useState("TUTTE");
   const [pannello, setPannello] = useState("ultimi");
   const [sbloccaImpostazioni, setSbloccaImpostazioni] = useState(false);
   const [toasts, setToasts] = useState([]);
@@ -269,10 +270,18 @@ export default function AstaRoom() {
     const q = normalizza(dispQuery.trim());
     return listone
       .filter((g) => dispRuolo === "TUTTI" || g.ruolo === dispRuolo)
+      .filter((g) => dispSquadra === "TUTTE" || g.squadra === dispSquadra)
       .filter((g) => !assegnati.has(normalizza(g.nome)))
       .filter((g) => !q || normalizza(g.nome).includes(q))
       .sort((a, b) => b.quotazione - a.quotazione || a.nome.localeCompare(b.nome));
-  }, [listone, squadre, dispRuolo, dispQuery]);
+  }, [listone, squadre, dispRuolo, dispSquadra, dispQuery]);
+
+  // Elenco delle squadre di Serie A presenti nel listone, per il filtro:
+  // in ordine alfabetico, senza doppioni.
+  const squadreSerieA = useMemo(() => {
+    const nomi = new Set(listone.map((g) => g.squadra).filter(Boolean));
+    return [...nomi].sort((a, b) => a.localeCompare(b));
+  }, [listone]);
 
   // Quanti giocatori restano nel listone per ciascun ruolo, indipendente dal
   // filtro che l'utente ha scelto nella scheda Disponibili: serve a scoprire
@@ -2196,6 +2205,19 @@ export default function AstaRoom() {
                     value={dispQuery}
                     onChange={(e) => setDispQuery(e.target.value)}
                   />
+                  <select
+                    className="fk-disp-squadra"
+                    value={dispSquadra}
+                    onChange={(e) => setDispSquadra(e.target.value)}
+                    title="Filtra per squadra di Serie A"
+                  >
+                    <option value="TUTTE">Tutte le squadre</option>
+                    {squadreSerieA.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
                   <span className="fk-disp-count">{giocatoriDisponibili.length} giocatori</span>
                 </div>
                 <div className="fk-choice-grid" style={{ marginBottom: 16 }}>

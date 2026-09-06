@@ -934,6 +934,7 @@ select option { background: var(--surface-solid); color: var(--text); }
   margin-bottom: 14px;
 }
 .fk-disp-toolbar input { max-width: 260px; }
+.fk-disp-squadra { max-width: 190px; }
 .fk-disp-count {
   font-size: 11.5px;
   color: var(--text-faint);

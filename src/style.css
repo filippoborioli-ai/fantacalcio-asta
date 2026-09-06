@@ -84,20 +84,30 @@ body {
   position: sticky;
   top: 0;
   z-index: 40;
+  flex-shrink: 0; /* dentro .fk-root-live (flex column): mai schiacciato sotto
+                     la sua altezza naturale, anche quando va su più righe */
   background: rgba(43, 36, 56, 0.85);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--line);
 }
-.fk-topbar {
+/* barra unica: brand, tabs e badge codice/uscita sulla stessa riga da
+   tablet in su, per non rubare altezza verticale al palco dell'asta live
+   (sotto i 760px torna a due righe via grid-template-areas). */
+.fk-headbar {
   max-width: 1080px;
   margin: 0 auto;
-  padding: 12px 18px;
-  display: flex;
+  padding: 10px 18px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-areas: "brand tabs right";
   align-items: center;
   gap: 14px;
 }
-.fk-brand { min-width: 0; flex: 1; }
+.fk-headbar .fk-brand { grid-area: brand; }
+.fk-headbar .fk-tabs { grid-area: tabs; }
+.fk-headbar .fk-topbar-right { grid-area: right; }
+.fk-brand { min-width: 0; }
 .fk-brand h1 {
   font-family: 'Fraunces', Georgia, serif;
   font-weight: 700;
@@ -169,9 +179,6 @@ body {
 
 /* ---------- tabs a pillole ---------- */
 .fk-tabs {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 0 18px 11px;
   display: flex;
   gap: 6px;
   align-items: center;
@@ -204,6 +211,7 @@ body {
 
 /* ---------- contenuto ---------- */
 .fk-main {
+  width: 100%;
   max-width: 1080px;
   margin: 20px auto 0;
   padding: 0 18px;
@@ -1044,9 +1052,16 @@ select option { background: var(--surface-solid); color: var(--text); }
 /* =========================================================
    RESPONSIVE
    ========================================================= */
+@media (max-width: 940px) {
+  .fk-headbar {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "brand right" "tabs tabs";
+    gap: 8px 10px;
+  }
+}
 @media (max-width: 620px) {
-  .fk-topbar { padding: 10px 14px; gap: 10px; }
-  .fk-tabs { padding: 0 14px 10px; gap: 5px; }
+  .fk-headbar { padding: 10px 14px; gap: 8px 10px; }
+  .fk-tabs { gap: 5px; }
   .fk-tab { padding: 7px 12px; font-size: 12.5px; }
   .fk-main { padding: 0 14px; margin-top: 16px; }
   .fk-card { padding: 16px 16px; }
@@ -1251,13 +1266,18 @@ select option { background: var(--surface-solid); color: var(--text); }
   overflow-y: auto;
 }
 
-/* palco: ora è il vero protagonista, usa tutto lo spazio che ha */
+/* palco: ora è il vero protagonista, usa tutto lo spazio che ha.
+   justify-content centra verticalmente quando il contenuto ci sta; "safe"
+   fa sì che, quando NON ci sta (finestra bassa/stretta), si allinei in alto
+   invece di sforare a metà sopra e sotto il riquadro diventando irraggiungibile
+   anche scrollando (bug reale: era la causa dei contenuti "tagliati fuori"). */
 .fk-stage {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   justify-content: center;
+  justify-content: safe center;
   padding: clamp(14px, 3vh, 32px) clamp(16px, 4vw, 40px);
 }
 .fk-stage > * { width: 100%; max-width: 480px; }

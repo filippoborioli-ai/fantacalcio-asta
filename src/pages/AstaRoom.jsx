@@ -896,7 +896,7 @@ export default function AstaRoom() {
   // se qualcun altro ha già chiuso, o il giocatore risulta già assegnato,
   // l'asta viene comunque spenta invece di lasciare tutto incastrato.
   const chiudiAstaLive = useCallback(
-    async (astaId) => {
+    async (astaId, { rispettaScadenza = false } = {}) => {
       setLiveErr("");
       try {
         await runTransaction(db, async (tx) => {
@@ -907,6 +907,17 @@ export default function AstaRoom() {
           // Già chiusa, oppure nel frattempo ne è partita un'altra: nulla da fare.
           if (!live || !live.attiva) return;
           if (astaId && live.id && live.id !== astaId) return;
+
+          // Il timer LOCALE di un dispositivo può scattare in anticipo: un
+          // rilancio arrivato a 2-3 secondi dalla fine sposta la scadenza sul
+          // documento, ma il countdown già in corso su un altro telefono non
+          // lo sa ancora e crede che il tempo sia scaduto. Rilegge però lo
+          // stato più fresco proprio qui: se la scadenza vera (quella
+          // appena spostata dal rilancio) non è ancora passata, non chiude —
+          // sarà il device con l'orologio giusto a richiuderla al momento
+          // corretto. Vale solo per la chiusura automatica: "Chiudi e
+          // assegna" a mano resta una scelta dell'admin, sempre rispettata.
+          if (rispettaScadenza && live.scadenza && Date.now() < live.scadenza) return;
 
           // Nessuna offerta: si spegne e basta, il giocatore torna disponibile.
           if (!live.squadraOfferenteId) {
@@ -1084,7 +1095,11 @@ export default function AstaRoom() {
       if (rimasti <= 0 && !chiusuraLanciata) {
         chiusuraLanciata = true;
         suona("martelletto");
-        chiudiAstaLive(astaLive.id);
+        // rispettaScadenza: se il countdown di QUESTO dispositivo è scattato
+        // in anticipo (un rilancio ha spostato la scadenza un istante prima
+        // che l'aggiornamento arrivasse), la transazione lo scopre e non fa
+        // nulla — niente assegnazione anticipata "rubata" all'ultimo rilancio.
+        chiudiAstaLive(astaLive.id, { rispettaScadenza: true });
       }
     };
     tick();

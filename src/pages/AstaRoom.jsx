@@ -16,6 +16,8 @@ import {
 import { subscribeListone, salvaListone, estraiGiocatoriDaFile, normalizza } from "../lib/listone.js";
 import GiocatoreInput from "../components/GiocatoreInput.jsx";
 import TemaToggle from "../components/TemaToggle.jsx";
+import AudioToggle from "../components/AudioToggle.jsx";
+import { suona } from "../lib/suoni.js";
 import {
   Trash2,
   AlertTriangle,
@@ -73,52 +75,6 @@ function spara(top) {
       () => confetti({ ...base, particleCount: 60, angle: 120, spread: 60, origin: { x: 1, y: 0.5 } }),
       1150
     );
-  }
-}
-
-// Piccoli suoni sintetizzati via WebAudio (niente file da caricare). Falliscono
-// in silenzio se il browser blocca l'audio: mai un errore visibile per questo.
-let audioCtx = null;
-function suona(tipo) {
-  try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume();
-    const ora = audioCtx.currentTime;
-    const note = (freq, inizio, durata, volume = 0.09) => {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, ora + inizio);
-      gain.gain.linearRampToValueAtTime(volume, ora + inizio + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ora + inizio + durata);
-      osc.connect(gain).connect(audioCtx.destination);
-      osc.start(ora + inizio);
-      osc.stop(ora + inizio + durata + 0.05);
-    };
-    if (tipo === "assegnato") {
-      note(660, 0, 0.12);
-      note(880, 0.1, 0.22);
-    } else if (tipo === "top") {
-      note(523, 0, 0.1);
-      note(659, 0.09, 0.1);
-      note(880, 0.18, 0.3);
-    } else if (tipo === "rush") {
-      note(740, 0, 0.08, 0.06);
-    } else if (tipo === "superato") {
-      note(300, 0, 0.16, 0.07);
-      note(220, 0.1, 0.2, 0.07);
-    } else if (tipo === "squadra") {
-      note(587, 0, 0.1, 0.07);
-      note(784, 0.08, 0.18, 0.07);
-    } else if (tipo === "lancio") {
-      note(500, 0, 0.06, 0.05);
-      note(340, 0.05, 0.08, 0.05);
-    } else if (tipo === "colpito") {
-      note(180, 0, 0.18, 0.08);
-    }
-  } catch (e) {
-    // audio non disponibile: nessun problema, l'app funziona lo stesso
   }
 }
 
@@ -187,6 +143,7 @@ export default function AstaRoom() {
   const [superato, setSuperato] = useState(false);
   const [lanci, setLanci] = useState([]);
   const [colpito, setColpito] = useState(false);
+  const [aggiudicazione, setAggiudicazione] = useState(null);
   const prevGiocatoriIdsRef = useRef(null);
   const prevSquadraIdsRef = useRef(null);
   const prevAstaLiveRef = useRef(null);
@@ -328,26 +285,49 @@ export default function AstaRoom() {
       for (const s of squadre) {
         const nuovo = s.giocatori.find((g) => !idsPrima.has(g.id));
         if (nuovo) {
-          const inListone = listone.find((g) => normalizza(g.nome) === normalizza(nuovo.nome));
-          const top = !!inListone && inListone.quotazione >= 25;
+          // Quanto è grossa la festa lo decide il prezzo pagato, non la
+          // quotazione di listino: in asta conta quello che hai speso. La
+          // soglia è in proporzione al budget, così vale con qualunque
+          // regolamento (con 500 crediti: colpo grosso da 60 in su).
+          const sogliaColpo = Math.max(10, Math.round((config?.budget || 500) * 0.12));
+          const colpoGrosso = nuovo.crediti >= sogliaColpo;
+          // Record della serata: batte tutti gli acquisti precedenti.
+          const spesaMassimaPrima = (stato?.storicoAcquisti || [])
+            .filter((a) => a.giocatoreId !== nuovo.id)
+            .reduce((max, a) => Math.max(max, a.crediti), 0);
+          const record = nuovo.crediti > spesaMassimaPrima && nuovo.crediti >= sogliaColpo;
           aggiungiToast({
-            tipo: top ? "giocatore-top" : "giocatore",
-            emoji: top ? "🏆" : "🎉",
+            tipo: colpoGrosso ? "giocatore-top" : "giocatore",
+            emoji: record ? "👑" : colpoGrosso ? "🏆" : "🎉",
             titolo: (
               <>
                 <strong>{nuovo.nome}</strong> a <strong>{s.nome}</strong>
               </>
             ),
-            sub: `${nuovo.crediti} crediti`,
+            sub: record
+              ? `${nuovo.crediti} crediti · colpo più caro della serata!`
+              : `${nuovo.crediti} crediti`,
           });
-          spara(top);
-          suona(top ? "top" : "assegnato");
+          spara(colpoGrosso);
+          suona(record ? "record" : colpoGrosso ? "top" : "assegnato");
+          // Il timbro dell'aggiudicazione: il momento va segnato con qualcosa
+          // di grosso al centro dello schermo, non solo con un toast in alto.
+          setAggiudicazione({
+            id: nuovo.id,
+            nome: nuovo.nome,
+            squadra: s.nome,
+            crediti: nuovo.crediti,
+            record,
+            colpoGrosso,
+            mia: s.id === deviceRole,
+          });
+          setTimeout(() => setAggiudicazione(null), 2200);
           break;
         }
       }
     }
     prevGiocatoriIdsRef.current = idsAttuali;
-  }, [squadre, listone, aggiungiToast]);
+  }, [squadre, listone, config?.budget, stato?.storicoAcquisti, aggiungiToast]);
 
   // Nuova squadra iscritta: piccolo benvenuto per tutti, così si sente che
   // la lega si sta riempiendo.
@@ -391,6 +371,7 @@ export default function AstaRoom() {
           ),
           sub: "Torna tra i disponibili",
         });
+        suona("vuoto");
       } else if (
         astaLive?.attiva &&
         astaLive.giocatore === prima.giocatore &&
@@ -891,11 +872,19 @@ export default function AstaRoom() {
     // dispositivi ci arrivano insieme, il primo chiude e gli altri trovano
     // l'asta già chiusa e non fanno nulla.
     let chiusuraLanciata = false;
+    let ultimoTic = null;
     const tick = () => {
       const rimasti = Math.max(0, Math.ceil((astaLive.scadenza - Date.now()) / 1000));
       setSecondiRimanenti(rimasti);
+      // Ultimi tre secondi: battito secco, uno per secondo. È il momento in cui
+      // di solito parte l'ultimo rilancio, e va sentito senza guardare lo schermo.
+      if (rimasti > 0 && rimasti <= 3 && rimasti !== ultimoTic) {
+        ultimoTic = rimasti;
+        suona("tic");
+      }
       if (rimasti <= 0 && !chiusuraLanciata) {
         chiusuraLanciata = true;
+        suona("martelletto");
         chiudiAstaLive(astaLive.id);
       }
     };
@@ -1053,6 +1042,27 @@ export default function AstaRoom() {
           </span>
         </div>
       ))}
+      {aggiudicazione && (
+        <div
+          key={aggiudicazione.id}
+          className={[
+            "fk-timbro",
+            aggiudicazione.record ? "fk-timbro-record" : "",
+            aggiudicazione.mia ? "fk-timbro-mio" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <span className="fk-timbro-testa">
+            {aggiudicazione.record ? "Record della serata" : "Aggiudicato"}
+          </span>
+          <span className="fk-timbro-nome">{aggiudicazione.nome}</span>
+          <span className="fk-timbro-riga">
+            {aggiudicazione.mia ? "è tuo" : `a ${aggiudicazione.squadra}`} ·{" "}
+            <strong>{aggiudicazione.crediti}</strong> crediti
+          </span>
+        </div>
+      )}
       <div className="fk-toast-stack">
         {toasts.map((t, i) => (
           <div
@@ -1115,6 +1125,7 @@ export default function AstaRoom() {
           </nav>
 
           <div className="fk-topbar-right">
+            <AudioToggle />
             <TemaToggle />
             <button className="fk-code-badge" onClick={copiaCodice} title="Copia il codice">
               <strong>{codice}</strong>

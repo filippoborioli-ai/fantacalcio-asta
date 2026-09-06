@@ -1730,3 +1730,73 @@ select option { background: var(--surface-solid); color: var(--text); }
   from { opacity: 0; transform: translate(-50%, 14px); }
   to { opacity: 1; transform: translate(-50%, 0); }
 }
+
+/* =========================================================
+   TIMBRO DI AGGIUDICAZIONE
+   Il momento in cui il giocatore viene assegnato merita più di un toast:
+   il timbro arriva ruotato, sbatte al centro e svanisce. Non blocca mai i
+   click (pointer-events: none) e non tocca il layout: è tutto fisso sopra
+   la pagina, quindi non può far comparire scrollbar sul palco.
+   ========================================================= */
+@keyframes fk-timbro-in {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(2.6) rotate(-18deg); }
+  55% { opacity: 1; transform: translate(-50%, -50%) scale(0.94) rotate(-7deg); }
+  70% { transform: translate(-50%, -50%) scale(1.04) rotate(-9deg); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-8deg); }
+}
+@keyframes fk-timbro-out {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translate(-50%, -50%) scale(1.1) rotate(-8deg); }
+}
+.fk-timbro {
+  position: fixed;
+  top: 42%;
+  left: 50%;
+  z-index: 95;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: clamp(14px, 2.5vh, 24px) clamp(26px, 5vw, 52px);
+  border: 4px solid var(--accent);
+  border-radius: 18px;
+  background: rgba(35, 26, 18, 0.82);
+  box-shadow: 0 24px 70px -20px rgba(0, 0, 0, 0.8);
+  text-align: center;
+  animation: fk-timbro-in 0.42s cubic-bezier(0.2, 1.5, 0.4, 1) forwards,
+    fk-timbro-out 0.5s ease-in 1.7s forwards;
+}
+.fk-timbro-testa {
+  font-size: clamp(11px, 1.5vh, 13px);
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.fk-timbro-nome {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: clamp(26px, 5vh, 52px);
+  font-weight: 700;
+  line-height: 1.05;
+  color: #FBF4F7;
+}
+.fk-timbro-riga { font-size: clamp(12px, 1.7vh, 15px); color: #E4D7DF; }
+.fk-timbro-riga strong { color: var(--gold); }
+
+/* la propria: bordo dorato, si vede subito che è roba tua */
+.fk-timbro-mio { border-color: var(--gold); }
+.fk-timbro-mio .fk-timbro-testa { color: var(--gold); }
+
+/* record della serata: oro pieno e un filo più grande */
+.fk-timbro-record {
+  border-color: var(--gold);
+  background: linear-gradient(135deg, rgba(92, 68, 19, 0.92), rgba(35, 26, 18, 0.9));
+  box-shadow: 0 24px 70px -18px rgba(255, 201, 77, 0.5), 0 0 0 1px rgba(255, 201, 77, 0.3);
+}
+.fk-timbro-record .fk-timbro-testa { color: var(--gold); }
+.fk-timbro-record .fk-timbro-nome { font-size: clamp(28px, 5.6vh, 58px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fk-timbro { animation: fk-timbro-out 0.4s ease-in 1.8s forwards; }
+}

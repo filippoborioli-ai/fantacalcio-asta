@@ -1,0 +1,88 @@
+// Effetti sonori dell'asta, sintetizzati al volo con WebAudio: nessun file da
+// scaricare, nessuna licenza da inseguire, e restano leggeri anche su telefono.
+// Se il browser non concede l'audio, ogni funzione fallisce in silenzio: un
+// suono mancato non deve mai diventare un errore in faccia a chi sta giocando.
+
+let audioCtx = null;
+
+// I browser creano il contesto audio "sospeso" finché l'utente non tocca la
+// pagina, e resume() senza un gesto vero non lo sveglia. Chi guarda l'asta
+// senza mai cliccare restava quindi muto per tutta la serata: qui lo
+// sblocchiamo al primo tocco/tasto, una volta sola.
+export function sbloccaAudio() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch (e) {
+    // niente audio su questo dispositivo: l'app funziona lo stesso
+  }
+}
+
+let audioSpento = false;
+export function impostaAudioSpento(spento) {
+  audioSpento = spento;
+}
+
+export function suona(tipo) {
+  if (audioSpento) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const ora = audioCtx.currentTime;
+    const note = (freq, inizio, durata, volume = 0.09, forma = "sine", freqFine = null) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = forma;
+      osc.frequency.setValueAtTime(freq, ora + inizio);
+      // Con freqFine la nota scivola: serve per il "wah wah" e per la martellata.
+      if (freqFine) osc.frequency.exponentialRampToValueAtTime(freqFine, ora + inizio + durata);
+      gain.gain.setValueAtTime(0, ora + inizio);
+      gain.gain.linearRampToValueAtTime(volume, ora + inizio + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ora + inizio + durata);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(ora + inizio);
+      osc.stop(ora + inizio + durata + 0.05);
+    };
+    if (tipo === "assegnato") {
+      note(660, 0, 0.12);
+      note(880, 0.1, 0.22);
+    } else if (tipo === "top") {
+      note(523, 0, 0.1);
+      note(659, 0.09, 0.1);
+      note(880, 0.18, 0.3);
+    } else if (tipo === "record") {
+      // Fanfara: l'acquisto più caro della serata merita più di un dlin.
+      note(523, 0, 0.12, 0.1);
+      note(659, 0.11, 0.12, 0.1);
+      note(784, 0.22, 0.14, 0.1);
+      note(1046, 0.36, 0.42, 0.11);
+    } else if (tipo === "rush") {
+      note(740, 0, 0.08, 0.06);
+    } else if (tipo === "superato") {
+      note(300, 0, 0.16, 0.07);
+      note(220, 0.1, 0.2, 0.07);
+    } else if (tipo === "squadra") {
+      note(587, 0, 0.1, 0.07);
+      note(784, 0.08, 0.18, 0.07);
+    } else if (tipo === "lancio") {
+      note(500, 0, 0.06, 0.05);
+      note(340, 0.05, 0.08, 0.05);
+    } else if (tipo === "colpito") {
+      note(180, 0, 0.18, 0.08);
+    } else if (tipo === "tic") {
+      // Battito degli ultimi secondi: secco e leggero, non deve stancare.
+      note(1200, 0, 0.05, 0.05, "square");
+    } else if (tipo === "martelletto") {
+      // Colpo di martelletto: tonfo grave con lo schiocco sopra.
+      note(160, 0, 0.18, 0.13, "sine", 60);
+      note(2200, 0, 0.04, 0.05, "square");
+    } else if (tipo === "vuoto") {
+      // Nessuno lo ha voluto: trombetta triste.
+      note(330, 0, 0.16, 0.07, "sawtooth", 300);
+      note(294, 0.15, 0.16, 0.07, "sawtooth", 262);
+      note(247, 0.3, 0.3, 0.07, "sawtooth", 208);
+    }
+  } catch (e) {
+    // audio non disponibile: nessun problema, l'app funziona lo stesso
+  }
+}

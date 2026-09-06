@@ -927,7 +927,7 @@ export default function AstaRoom() {
         ))}
       </div>
       <header className="fk-header">
-        <div className="fk-topbar">
+        <div className="fk-headbar">
           <div className="fk-brand">
             <h1>{stato.nome || "Asta del Fanta"}</h1>
             <p className="fk-sub">
@@ -936,6 +936,42 @@ export default function AstaRoom() {
                 : "Configura l'asta qui sotto"}
             </p>
           </div>
+
+          <nav className="fk-tabs">
+            <button
+              className={tab === "live" ? "fk-tab fk-tab-active" : "fk-tab"}
+              onClick={() => asta_iniziata && setTab("live")}
+              disabled={!asta_iniziata}
+            >
+              🔴 Asta Live
+            </button>
+            <button
+              className={tab === "squadre" ? "fk-tab fk-tab-active" : "fk-tab"}
+              onClick={() => asta_iniziata && setTab("squadre")}
+              disabled={!asta_iniziata}
+            >
+              Squadre
+            </button>
+            <button
+              className={tab === "disponibili" ? "fk-tab fk-tab-active" : "fk-tab"}
+              onClick={() => asta_iniziata && setTab("disponibili")}
+              disabled={!asta_iniziata}
+            >
+              Disponibili
+            </button>
+            <button
+              className={tab === "setup" ? "fk-tab fk-tab-active" : "fk-tab"}
+              onClick={() => setTab("setup")}
+            >
+              Impostazioni
+            </button>
+            {asta_iniziata && (
+              <button className="fk-secondary fk-export-nav" onClick={esportaExcel}>
+                <Download size={14} /> <span>Excel</span>
+              </button>
+            )}
+          </nav>
+
           <div className="fk-topbar-right">
             <button className="fk-code-badge" onClick={copiaCodice} title="Copia il codice">
               <strong>{codice}</strong>
@@ -946,41 +982,6 @@ export default function AstaRoom() {
             </Link>
           </div>
         </div>
-
-        <nav className="fk-tabs">
-          <button
-            className={tab === "live" ? "fk-tab fk-tab-active" : "fk-tab"}
-            onClick={() => asta_iniziata && setTab("live")}
-            disabled={!asta_iniziata}
-          >
-            🔴 Asta Live
-          </button>
-          <button
-            className={tab === "squadre" ? "fk-tab fk-tab-active" : "fk-tab"}
-            onClick={() => asta_iniziata && setTab("squadre")}
-            disabled={!asta_iniziata}
-          >
-            Squadre
-          </button>
-          <button
-            className={tab === "disponibili" ? "fk-tab fk-tab-active" : "fk-tab"}
-            onClick={() => asta_iniziata && setTab("disponibili")}
-            disabled={!asta_iniziata}
-          >
-            Disponibili
-          </button>
-          <button
-            className={tab === "setup" ? "fk-tab fk-tab-active" : "fk-tab"}
-            onClick={() => setTab("setup")}
-          >
-            Impostazioni
-          </button>
-          {asta_iniziata && (
-            <button className="fk-secondary fk-export-nav" onClick={esportaExcel}>
-              <Download size={14} /> <span>Excel</span>
-            </button>
-          )}
-        </nav>
       </header>
 
       <main className={tab === "live" ? "fk-main fk-main-live" : "fk-main"}>

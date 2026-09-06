@@ -619,11 +619,11 @@ select option { background: var(--surface-solid); color: var(--text); }
 .fk-leading { color: var(--gold); font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
 
 /* statistiche mie */
+.fk-stats-wrap { margin-top: 16px; }
 .fk-stats-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 8px;
-  margin: 16px 0 0;
 }
 .fk-stat {
   background: rgba(0,0,0,0.25);
@@ -1392,7 +1392,8 @@ select option { background: var(--surface-solid); color: var(--text); }
 .fk-live-grid .fk-leader { margin: 0 0 clamp(4px, 1vh, 10px); padding: 5px 14px; font-size: 12.5px; }
 .fk-live-grid .fk-bid-row { margin-top: clamp(6px, 1.3vh, 14px); }
 .fk-live-grid .fk-bid-btn { font-size: clamp(14px, 2vh, 18px); padding: clamp(10px, 1.8vh, 15px) clamp(20px, 4vw, 34px); }
-.fk-live-grid .fk-stats-row { margin-top: clamp(6px, 1.3vh, 12px); gap: 6px; }
+.fk-live-grid .fk-stats-wrap { margin-top: clamp(6px, 1.3vh, 12px); }
+.fk-live-grid .fk-stats-row { gap: 6px; }
 .fk-live-grid .fk-stat { padding: clamp(4px, 0.8vh, 8px) 8px; }
 .fk-live-grid .fk-stat-num { font-size: clamp(14px, 1.8vh, 18px); }
 .fk-live-grid .fk-stat-lab { font-size: 9px; margin-top: 1px; }
@@ -1513,7 +1514,6 @@ select option { background: var(--surface-solid); color: var(--text); }
 .fk-live-grid .fk-choice { padding: 9px 4px; font-size: 12px; }
 
 /* pulsante mostra/nascondi i propri numeri sul palco */
-.fk-stats-row { position: relative; }
 .fk-stat-toggle {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -1530,10 +1530,13 @@ select option { background: var(--surface-solid); color: var(--text); }
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 .fk-stat-toggle:hover { color: var(--text); border-color: var(--line-strong); background: var(--surface-2); }
+/* "nascondi" sta sopra le tre caselle, sul lato destro: elemento normale nel
+   flusso (non più posizionato assoluto), così non si sovrappone mai al testo
+   sopra di lui, qualunque sia la sua altezza. */
+.fk-stats-wrap { display: flex; flex-direction: column; }
 .fk-stat-toggle-corner {
-  position: absolute;
-  top: -22px;
-  right: 0;
+  align-self: flex-end;
+  margin-bottom: 6px;
   padding: 3px 9px;
   font-size: 10px;
 }

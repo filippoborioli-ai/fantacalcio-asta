@@ -1215,21 +1215,7 @@ export default function AstaRoom() {
                   👁️ Mostra i miei numeri
                 </button>
               ) : (
-                <div className="fk-stats-row">
-                  <div className="fk-stat">
-                    <div className="fk-stat-num" style={{ color: "var(--gold)" }}>{residui}</div>
-                    <div className="fk-stat-lab">crediti</div>
-                  </div>
-                  <div className="fk-stat">
-                    <div className="fk-stat-num">{postiLiberiMia}</div>
-                    <div className="fk-stat-lab">posti liberi</div>
-                  </div>
-                  <div className="fk-stat">
-                    <div className="fk-stat-num" style={{ color: "var(--accent)" }}>
-                      {Math.max(0, maxOffertaMia)}
-                    </div>
-                    <div className="fk-stat-lab">offerta max</div>
-                  </div>
+                <div className="fk-stats-wrap">
                   <button
                     className="fk-stat-toggle fk-stat-toggle-corner"
                     title="Nascondi questi numeri"
@@ -1237,6 +1223,22 @@ export default function AstaRoom() {
                   >
                     <Lock size={12} /> nascondi
                   </button>
+                  <div className="fk-stats-row">
+                    <div className="fk-stat">
+                      <div className="fk-stat-num" style={{ color: "var(--gold)" }}>{residui}</div>
+                      <div className="fk-stat-lab">crediti</div>
+                    </div>
+                    <div className="fk-stat">
+                      <div className="fk-stat-num">{postiLiberiMia}</div>
+                      <div className="fk-stat-lab">posti liberi</div>
+                    </div>
+                    <div className="fk-stat">
+                      <div className="fk-stat-num" style={{ color: "var(--accent)" }}>
+                        {Math.max(0, maxOffertaMia)}
+                      </div>
+                      <div className="fk-stat-lab">offerta max</div>
+                    </div>
+                  </div>
                 </div>
               );
 

@@ -1,8 +1,8 @@
 export const RUOLI = [
-  { key: "P", label: "Portieri", colore: "#C99A2E" },
-  { key: "D", label: "Difensori", colore: "#3B6E8F" },
-  { key: "C", label: "Centrocampisti", colore: "#3B7A45" },
-  { key: "A", label: "Attaccanti", colore: "#B8412B" },
+  { key: "P", label: "Portieri", colore: "#F5C542" },
+  { key: "D", label: "Difensori", colore: "#4EA8DE" },
+  { key: "C", label: "Centrocampisti", colore: "#35D07F" },
+  { key: "A", label: "Attaccanti", colore: "#FF6B45" },
 ];
 
 export const defaultConfig = () => ({

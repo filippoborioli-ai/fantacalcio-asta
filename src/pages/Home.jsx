@@ -75,36 +75,47 @@ export default function Home() {
 
   return (
     <div className="home-root">
-      <h1>Asta del Fanta</h1>
-      <p className="home-sub">Crea la tua asta o entra in una già avviata da un amico.</p>
+      <div className="home-inner">
+        <span className="home-badge">⚽</span>
+        <h1>Asta del Fanta</h1>
+        <p className="home-sub">
+          Rilanci in tempo reale, budget sotto controllo, zero fogli di carta.
+        </p>
 
-      <div className="home-card">
-        <h2>Crea una nuova asta</h2>
-        <input
-          type="text"
-          placeholder="Nome dell'asta (es. Panda)"
-          value={nomeAsta}
-          onChange={(e) => setNomeAsta(e.target.value)}
-        />
-        <button className="home-primary" onClick={creaAsta} disabled={creando}>
-          {creando ? "Creo…" : "Crea asta"}
-        </button>
+        <div className="home-card">
+          <h2>Crea una nuova asta</h2>
+          <p>Ricevi un codice da girare ai tuoi amici.</p>
+          <input
+            type="text"
+            placeholder="Nome della lega (es. Panda)"
+            value={nomeAsta}
+            onChange={(e) => setNomeAsta(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && !creando && creaAsta()}
+          />
+          <button className="home-primary" onClick={creaAsta} disabled={creando}>
+            {creando ? "Creo…" : "Crea asta"}
+          </button>
+        </div>
+
+        <div className="home-card">
+          <h2>Entra con un codice</h2>
+          <p>Te l'ha passato chi ha creato la lega.</p>
+          <input
+            type="text"
+            className="home-code-input"
+            placeholder="7K3PLQ"
+            maxLength={6}
+            value={codiceInput}
+            onChange={(e) => setCodiceInput(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === "Enter" && !unendo && uniscitiAsta()}
+          />
+          <button className="home-secondary" onClick={uniscitiAsta} disabled={unendo}>
+            {unendo ? "Entro…" : "Unisciti"}
+          </button>
+        </div>
+
+        {errore && <p className="home-error">{errore}</p>}
       </div>
-
-      <div className="home-card">
-        <h2>Unisciti con un codice</h2>
-        <input
-          type="text"
-          placeholder="Codice (es. 7K3PLQ)"
-          value={codiceInput}
-          onChange={(e) => setCodiceInput(e.target.value.toUpperCase())}
-        />
-        <button className="home-secondary" onClick={uniscitiAsta} disabled={unendo}>
-          {unendo ? "Entro…" : "Unisciti"}
-        </button>
-      </div>
-
-      {errore && <p className="home-error">{errore}</p>}
     </div>
   );
 }

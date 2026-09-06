@@ -141,6 +141,7 @@ export default function AstaRoom() {
   const [dispSquadra, setDispSquadra] = useState("TUTTE");
   const [slotAperta, setSlotAperta] = useState(false);
   const [premiAperti, setPremiAperti] = useState(false);
+  const [rosaQuery, setRosaQuery] = useState("");
   const [pannello, setPannello] = useState("ultimi");
   const [sbloccaImpostazioni, setSbloccaImpostazioni] = useState(false);
   const [toasts, setToasts] = useState([]);
@@ -287,6 +288,29 @@ export default function AstaRoom() {
       .filter((g) => !q || normalizza(g.nome).includes(q))
       .sort((a, b) => b.quotazione - a.quotazione || a.nome.localeCompare(b.nome));
   }, [liberiPerSorteggio, dispRuolo, dispSquadra, dispQuery]);
+
+  // "Chi ha preso X?": cerca tra i giocatori già in rosa, in tutte le squadre.
+  // Ordinati per prezzo, così se ci sono più omonimi si distinguono subito.
+  const risultatiRosa = useMemo(() => {
+    const q = normalizza(rosaQuery.trim());
+    if (!q) return [];
+    const trovati = [];
+    (squadre || []).forEach((s) => {
+      s.giocatori.forEach((g) => {
+        if (normalizza(g.nome).includes(q)) {
+          trovati.push({ giocatore: g, squadraId: s.id, squadraNome: s.nome });
+        }
+      });
+    });
+    return trovati.sort((a, b) => b.giocatore.crediti - a.giocatore.crediti);
+  }, [squadre, rosaQuery]);
+
+  // Con una ricerca attiva restano solo le rose che contengono un risultato.
+  const squadreDaMostrare = useMemo(() => {
+    if (!rosaQuery.trim()) return squadre || [];
+    const conRisultato = new Set(risultatiRosa.map((r) => r.squadraId));
+    return (squadre || []).filter((s) => conRisultato.has(s.id));
+  }, [squadre, rosaQuery, risultatiRosa]);
 
   // Elenco delle squadre di Serie A presenti nel listone, per il filtro:
   // in ordine alfabetico, senza doppioni.
@@ -2016,14 +2040,53 @@ export default function AstaRoom() {
         )}
 
         {tab === "squadre" && asta_iniziata && squadre.length > 0 && (
-          <button className="fk-premi-apri" onClick={() => setPremiAperti(true)}>
-            🏆 Gli Oscar dell'asta
-          </button>
+          <div className="fk-squadre-barra">
+            <input
+              type="text"
+              className="fk-rosa-cerca"
+              placeholder="Chi ha preso… (cerca nelle rose)"
+              value={rosaQuery}
+              onChange={(e) => setRosaQuery(e.target.value)}
+            />
+            <button className="fk-premi-apri" onClick={() => setPremiAperti(true)}>
+              🏆 Gli Oscar dell'asta
+            </button>
+          </div>
+        )}
+
+        {/* Risposta diretta a "chi ha preso X?": prima l'elenco secco dei
+            giocatori trovati, poi sotto restano solo le rose che li
+            contengono, per vedere anche cos'altro hanno in casa. */}
+        {tab === "squadre" && asta_iniziata && rosaQuery.trim() && (
+          <section className="fk-card fk-rosa-risultati">
+            {risultatiRosa.length === 0 ? (
+              <div className="fk-empty">
+                <span className="fk-empty-emoji">🔍</span>
+                Nessuno ha preso un giocatore con questo nome.
+              </div>
+            ) : (
+              <ul className="fk-disp-list">
+                {risultatiRosa.map((r) => {
+                  const ruolo = RUOLI.find((x) => x.key === r.giocatore.ruolo);
+                  return (
+                    <li key={r.giocatore.id}>
+                      <span className="fk-chip" style={{ background: ruolo?.colore }}>
+                        {r.giocatore.ruolo}
+                      </span>
+                      <span className="fk-disp-nome">{r.giocatore.nome}</span>
+                      <span className="fk-disp-club">{r.squadraNome}</span>
+                      <span className="fk-disp-qt">{r.giocatore.crediti}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         )}
 
         {tab === "squadre" && asta_iniziata && squadre.length > 0 && (
           <section className="fk-teams-grid">
-            {squadre.map((s) => {
+            {squadreDaMostrare.map((s) => {
               const spesi = creditiSpesi(s);
               const residui = config.budget - spesi;
               const totaleSlot = Object.values(config.slot).reduce((a, b) => a + b, 0);

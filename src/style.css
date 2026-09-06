@@ -2261,3 +2261,15 @@ select option { background: var(--surface-solid); color: var(--text); }
 }
 .fk-premi-apri:hover { filter: brightness(1.08); }
 .fk-premi-apri:active { transform: scale(0.97); }
+
+/* barra della scheda Squadre: ricerca nelle rose + premi */
+.fk-squadre-barra {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.fk-rosa-cerca { max-width: 300px; }
+.fk-squadre-barra .fk-premi-apri { margin-bottom: 0; margin-left: auto; }
+.fk-rosa-risultati { margin-bottom: 14px; }
